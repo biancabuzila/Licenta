@@ -1,5 +1,6 @@
 module CnfFormula
 
+open Utils
 open FStar.List.Tot.Base
 
 
@@ -144,12 +145,6 @@ let rec max_var_cnf_formula (rf : list (list int))
         result
 
 
-let rec my_nth (#a:Type) (l : list a) (n:int {n >= 0 && n < length l})
-    : a
-    = if n = 0 then hd l
-      else my_nth (tl l) (n - 1)
-
-
 let truth_value_literal (lit:int {valid_literal lit})
                         (tau : list bool {variables_up_to_literal lit (length tau)})
     : bool
@@ -165,11 +160,3 @@ let truth_value_clause (clause : list int {valid_clause clause})
 let truth_value_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
                             (tau : list bool {variables_up_to_cnf_formula rf (length tau)})
     = forall clause . mem clause rf ==> truth_value_clause clause tau
-
-
-
-
-
-// open FStar.IO
-// let _ = if (valid_literal 0) then print_string "True\n" else print_string "False\n"
-// let _ = print_string (string_of_int (lit_to_var 1))

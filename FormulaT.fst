@@ -37,32 +37,32 @@ let rec variables_up_to (f:formula_t) (n:int)
         | DImplies f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
 
 
-let rec max_var (f:formula_t)
-    : Pure int (requires valid_formula_t f)
-               (ensures fun r -> (r >= 0 && variables_up_to f r))
-    = match f with
-        | Var value -> value + 1
-        | Not f -> max_var f
-        | Or f1 f2 -> 
-            let temp1 = max_var f1 in
-            let temp2 = max_var f2 in
-            let n' = max temp1 temp2 in
-            n'
-        | And f1 f2 -> 
-            let temp1 = max_var f1 in
-            let temp2 = max_var f2 in
-            let n' = max temp1 temp2 in
-            n'
-        | Implies f1 f2 -> 
-            let temp1 = max_var f1 in
-            let temp2 = max_var f2 in
-            let n' = max temp1 temp2 in
-            n'
-        | DImplies f1 f2 -> 
-            let temp1 = max_var f1 in
-            let temp2 = max_var f2 in
-            let n' = max temp1 temp2 in
-            n'
+// let rec max_var (f:formula_t)
+//     : Pure int (requires valid_formula_t f)
+//                (ensures fun r -> (r >= 0 && variables_up_to f r))
+//     = match f with
+//         | Var value -> value + 1
+//         | Not f -> max_var f
+//         | Or f1 f2 -> 
+//             let temp1 = max_var f1 in
+//             let temp2 = max_var f2 in
+//             let n' = max temp1 temp2 in
+//             n'
+//         | And f1 f2 -> 
+//             let temp1 = max_var f1 in
+//             let temp2 = max_var f2 in
+//             let n' = max temp1 temp2 in
+//             n'
+//         | Implies f1 f2 -> 
+//             let temp1 = max_var f1 in
+//             let temp2 = max_var f2 in
+//             let n' = max temp1 temp2 in
+//             n'
+//         | DImplies f1 f2 -> 
+//             let temp1 = max_var f1 in
+//             let temp2 = max_var f2 in
+//             let n' = max temp1 temp2 in
+//             n'
 
 
 let rec truth_value (f:formula_t {valid_formula_t f}) 
@@ -85,33 +85,33 @@ let equivalent (f1:formula_t {valid_formula_t f1})
         truth_value f1 tau = truth_value f2 tau
 
 
-let rec seq_false (n:int)
-    : Pure (list bool) (requires n >= 0)
-                       (ensures fun r -> L.length r = n)
-                       (decreases n)
-    = if n = 0 then []
-      else L.append (seq_false (n - 1)) [false]
+// let rec seq_false (n:int)
+//     : Pure (list bool) (requires n >= 0)
+//                        (ensures fun r -> L.length r = n)
+//                        (decreases n)
+//     = if n = 0 then []
+//       else L.append (seq_false (n - 1)) [false]
 
 
-let rec pretty_print (f:formula_t) : Tot (list char)
+let rec pretty_print (f:formula_t) : Tot string 
     = match f with
-        | Var value -> integer_to_char_sequence value
+        | Var value -> string_of_int value
         | Not f -> 
             let f = pretty_print f in 
-            list_of_string (concat (concat "~("  [string_of_list f]) [")"])
+            concat "" ["~("; f; ")"]
         | Or f1 f2 ->  
             let f1 = pretty_print f1 in
             let f2 = pretty_print f2 in
-            list_of_string (concat (concat (concat (concat "(" [string_of_list f1]) [" or "]) [string_of_list f2]) [")"])
+            concat "" ["("; f1; " or "; f2; ")"]
         | And f1 f2 ->
             let f1 = pretty_print f1 in
             let f2 = pretty_print f2 in
-            list_of_string (concat (concat (concat (concat "(" [string_of_list f1]) [" and "]) [string_of_list f2]) [")"])
+            concat "" ["("; f1; " and "; f2; ")"]
         | Implies f1 f2 ->
             let f1 = pretty_print f1 in
             let f2 = pretty_print f2 in
-            list_of_string (concat (concat (concat (concat "(" [string_of_list f1]) [" -> "]) [string_of_list f2]) [")"])
+            concat "" ["("; f1; " -> "; f2; ")"]
         | DImplies f1 f2 ->
             let f1 = pretty_print f1 in
             let f2 = pretty_print f2 in
-            list_of_string (concat (concat (concat (concat "(" [string_of_list f1]) [" <-> "]) [string_of_list f2]) [")"])
+            concat "" ["("; f1; " <-> "; f2; ")"]

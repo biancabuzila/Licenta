@@ -5,7 +5,6 @@ open FStar.IO
 open FormulaT
 
 
-
 let main = let f0 = Var 0 in
            let f1 = Var 1 in
            let f2 = Var 2 in

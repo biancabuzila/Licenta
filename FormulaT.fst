@@ -37,32 +37,50 @@ let rec variables_up_to (f:formula_t) (n:int)
         | DImplies f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
 
 
-// let rec max_var (f:formula_t)
-//     : Pure int (requires valid_formula_t f)
-//                (ensures fun r -> (r >= 0 && variables_up_to f r))
-//     = match f with
-//         | Var value -> value + 1
-//         | Not f -> max_var f
-//         | Or f1 f2 -> 
-//             let temp1 = max_var f1 in
-//             let temp2 = max_var f2 in
-//             let n' = max temp1 temp2 in
-//             n'
-//         | And f1 f2 -> 
-//             let temp1 = max_var f1 in
-//             let temp2 = max_var f2 in
-//             let n' = max temp1 temp2 in
-//             n'
-//         | Implies f1 f2 -> 
-//             let temp1 = max_var f1 in
-//             let temp2 = max_var f2 in
-//             let n' = max temp1 temp2 in
-//             n'
-//         | DImplies f1 f2 -> 
-//             let temp1 = max_var f1 in
-//             let temp2 = max_var f2 in
-//             let n' = max temp1 temp2 in
-//             n'
+let variables_up_to_monotone (f:formula_t) (n:int) (n':int)
+    : Lemma (requires variables_up_to f n && n <= n')
+            (ensures variables_up_to f n')
+    = ()
+
+
+let rec max_var (f:formula_t)
+    : Pure int (requires valid_formula_t f)
+               (ensures fun r -> (r >= 0 && variables_up_to f r))
+    = match f with
+        | Var value -> value + 1
+        | Not f -> 
+            let temp = max_var f in
+            let n' = temp in
+            variables_up_to_monotone f temp n';
+            n'
+        | Or f1 f2 -> 
+            let temp1 = max_var f1 in
+            let temp2 = max_var f2 in
+            let n' = max temp1 temp2 in
+            variables_up_to_monotone f1 temp1 n';
+            variables_up_to_monotone f2 temp2 n';
+            n'
+        | And f1 f2 -> 
+            let temp1 = max_var f1 in
+            let temp2 = max_var f2 in
+            let n' = max temp1 temp2 in
+            variables_up_to_monotone f1 temp1 n';
+            variables_up_to_monotone f2 temp2 n';
+            n'
+        | Implies f1 f2 -> 
+            let temp1 = max_var f1 in
+            let temp2 = max_var f2 in
+            let n' = max temp1 temp2 in
+            variables_up_to_monotone f1 temp1 n';
+            variables_up_to_monotone f2 temp2 n';
+            n'
+        | DImplies f1 f2 -> 
+            let temp1 = max_var f1 in
+            let temp2 = max_var f2 in
+            let n' = max temp1 temp2 in
+            variables_up_to_monotone f1 temp1 n';
+            variables_up_to_monotone f2 temp2 n';
+            n'
 
 
 let rec truth_value (f:formula_t {valid_formula_t f}) 
@@ -83,14 +101,6 @@ let equivalent (f1:formula_t {valid_formula_t f1})
         variables_up_to f1 (L.length tau) && 
         variables_up_to f2 (L.length tau) ==> 
         truth_value f1 tau = truth_value f2 tau
-
-
-// let rec seq_false (n:int)
-//     : Pure (list bool) (requires n >= 0)
-//                        (ensures fun r -> L.length r = n)
-//                        (decreases n)
-//     = if n = 0 then []
-//       else L.append (seq_false (n - 1)) [false]
 
 
 let rec pretty_print (f:formula_t) : Tot string 

@@ -43,6 +43,13 @@ let rec pow_monotone (a:int) (b:int)
       else pow_monotone (a - 1) (b - 1)
 
 
+let rec pow_monotone_strict (a:int) (b:int)
+    : Lemma (requires a >= 0 && b > a)
+            (ensures pow2 a < pow2 b)
+    = if a = 0 then ()
+      else pow_monotone_strict (a - 1) (b - 1)
+
+
 let rec multpow_powsum (a:int) (b:int)
     : Lemma (requires a >= 1 && b >= 1)
             (ensures pow2 a * pow2 b = pow2 (a + b))
@@ -53,7 +60,7 @@ let rec multpow_powsum (a:int) (b:int)
 let sumpow_upper (a:int) (b:int)
     : Lemma (requires a >= 1 && b >= 2 && a >= b)
             (ensures pow2 a + pow2 b + 1 < pow2 (a * b))
-    = pow_monotone (a * 2) ( a * b);
+    = pow_monotone (a * 2) (a * b);
       assert (pow2 (a * 2) <= pow2 (a * b));
       assert (pow2 (a + a) <= pow2 (a * 2));
       multpow_powsum a a;
@@ -64,3 +71,16 @@ let sumpow_upper (a:int) (b:int)
       pow_monotone b a;
       assert (pow2 b <= pow2 a);
       assert (pow2 a + pow2 b + 1 < pow2 a + pow2 a + pow2 a + pow2 a)
+
+
+let rec pow_increases (a:int)
+    : Lemma (requires a >= 1)
+            (ensures a < pow2 a)
+    = if a = 1 then ()
+      else pow_increases (a - 1)
+  
+
+let less_than_mult_right (a:int) (b:int) (c:int)
+    : Lemma (requires a >= 1 && b >= 1 && c >= 1 && c < b)
+            (ensures a * c < a * b)
+    = ()

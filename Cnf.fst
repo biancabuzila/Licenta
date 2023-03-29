@@ -92,7 +92,6 @@ let apply_rule_2 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
                                         smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left)))
     = let Implies f1 f2 = f in
       let r = Or (Not f1) f2 in
-    //   assert (weight_of_ands r <= weight_of_ands f);
       r
 
 
@@ -136,8 +135,8 @@ let rule_5_prop (f1:formula_t) (f2:formula_t) (f3:formula_t) (ors_above_left:nat
               count_or_pairs f3 (ors_above_left + 1) +
               ors_above_left + ors_above_left);
       rule_5_prop_aux f3 (ors_above_left + 1);
-      assert (count_or_pairs f3 (ors_above_left + 1) <= count_or_pairs f3 (ors_above_left + 2));
-      assert (count_or_pairs (Or (Or f1 f2) f3) ors_above_left < count_or_pairs (Or f1 (Or f2 f3)) ors_above_left)
+      assert (count_or_pairs f3 (ors_above_left + 1) <= count_or_pairs f3 (ors_above_left + 2))
+      // assert (count_or_pairs (Or (Or f1 f2) f3) ors_above_left < count_or_pairs (Or f1 (Or f2 f3)) ors_above_left)
 
 
 let apply_rule_5 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
@@ -153,48 +152,46 @@ let apply_rule_5 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
       let Or f21 f22 = f2 in
       let r = Or (Or f1 f21) f22 in
       rule_5_prop f1 f21 f22 ors_above_left;
-      assert (count_or_pairs r ors_above_left < count_or_pairs f ors_above_left);
       r
 
 
-// let rule_6_prop_aux (f:formula_t) (ands_above_left:nat)
-//     : Lemma (ensures count_and_pairs f ands_above_left <= count_and_pairs f (ands_above_left + 1))
-//     = ()
+let rule_6_prop_aux (f:formula_t) (ands_above_left:nat)
+    : Lemma (ensures count_and_pairs f ands_above_left <= count_and_pairs f (ands_above_left + 1))
+    = ()
 
 
-// let rule_6_prop (f1:formula_t) (f2:formula_t) (f3:formula_t) (ands_above_left:nat)
-//     : Lemma (ensures count_and_pairs (And (And f1 f2) f3) ands_above_left < count_and_pairs (And f1 (And f2 f3)) ands_above_left)
-//     = assert (count_and_pairs (And f1 (And f2 f3)) ands_above_left = 
-//               count_and_pairs f1 ands_above_left + 
-//               count_and_pairs f2 (ands_above_left + 1) +
-//               count_and_pairs f3 (ands_above_left + 2) +
-//               ands_above_left + ands_above_left + 1);
-//       assert (count_and_pairs (And (And f1 f2) f3) ands_above_left =
-//               count_and_pairs f1 ands_above_left +
-//               count_and_pairs f2 (ands_above_left + 1) +
-//               count_and_pairs f3 (ands_above_left + 1) +
-//               ands_above_left + ands_above_left);
-//       rule_6_prop_aux f3 (ands_above_left + 1);
-//       assert (count_and_pairs f3 (ands_above_left + 1) <= count_and_pairs f3 (ands_above_left + 2));
-//       assert (count_and_pairs (And (And f1 f2) f3) ands_above_left < count_and_pairs (And f1 (And f2 f3)) ands_above_left)
+let rule_6_prop (f1:formula_t) (f2:formula_t) (f3:formula_t) (ands_above_left:nat)
+    : Lemma (ensures count_and_pairs (And (And f1 f2) f3) ands_above_left < count_and_pairs (And f1 (And f2 f3)) ands_above_left)
+    = assert (count_and_pairs (And f1 (And f2 f3)) ands_above_left = 
+              count_and_pairs f1 ands_above_left + 
+              count_and_pairs f2 (ands_above_left + 1) +
+              count_and_pairs f3 (ands_above_left + 2) +
+              ands_above_left + ands_above_left + 1);
+      assert (count_and_pairs (And (And f1 f2) f3) ands_above_left =
+              count_and_pairs f1 ands_above_left +
+              count_and_pairs f2 (ands_above_left + 1) +
+              count_and_pairs f3 (ands_above_left + 1) +
+              ands_above_left + ands_above_left);
+      rule_6_prop_aux f3 (ands_above_left + 1);
+      assert (count_and_pairs f3 (ands_above_left + 1) <= count_and_pairs f3 (ands_above_left + 2));
+      assert (count_and_pairs (And (And f1 f2) f3) ands_above_left < count_and_pairs (And f1 (And f2 f3)) ands_above_left)
 
 
-// let apply_rule_6 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
-//     : Pure formula_t (requires valid_formula_t f && And? f && And? (And?.f2 f))
-//                      (ensures fun r -> (valid_formula_t r /\
-//                                         equivalent f r /\
-//                                         weight_of_ands r <= weight_of_ands f /\
-//                                         count_dimplies r <= count_dimplies f /\
-//                                         count_implies r <= count_implies f /\
-//                                         count_or_pairs r ors_above_left <= count_or_pairs f ors_above_left /\
-//                                         count_and_pairs r ands_above_left < count_and_pairs f ands_above_left /\
-//                                         smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left)))
-//     = let And f1 f2 = f in 
-//       let And f21 f22 = f2 in 
-//       let r = And (And f1 f21) f22 in
-//       rule_6_prop f1 f21 f22 ands_above_left;
-//       assert (count_and_pairs r ands_above_left < count_and_pairs f ands_above_left);
-//       r
+let apply_rule_6 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
+    : Pure formula_t (requires valid_formula_t f && And? f && And? (And?.f2 f))
+                     (ensures fun r -> (valid_formula_t r /\
+                                        equivalent f r /\
+                                        weight_of_ands r <= weight_of_ands f /\
+                                        count_dimplies r <= count_dimplies f /\
+                                        count_implies r <= count_implies f /\
+                                        count_or_pairs r ors_above_left <= count_or_pairs f ors_above_left /\
+                                        count_and_pairs r ands_above_left < count_and_pairs f ands_above_left /\
+                                        smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left)))
+    = let And f1 f2 = f in 
+      let And f21 f22 = f2 in 
+      let r = And (And f1 f21) f22 in
+      rule_6_prop f1 f21 f22 ands_above_left;
+      r
 
 
 let rule_7_prop (f1:formula_t) (f2:formula_t)
@@ -221,5 +218,72 @@ let apply_rule_7 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
       let Or f11 f12 = f1 in
       let r = And (Not f11) (Not f12) in
       rule_7_prop f11 f12;
-      assert (weight_of_ands r < weight_of_ands f);
       r
+
+
+let rule_8_prop (f1:formula_t) (f2:formula_t)
+    : Lemma (requires weight_of_ands f1 >= 2 && weight_of_ands f2 >= 2)
+            (ensures weight_of_ands (Or (Not f1) (Not f2)) < weight_of_ands (Not (And f1 f2)))
+    = assert (weight_of_ands (Or (Not f1) (Not f2)) = pow2 (weight_of_ands f1) * pow2 (weight_of_ands f2));
+      assert (weight_of_ands (Not (And f1 f2)) = pow2 (weight_of_ands f1 + weight_of_ands f2 + 1));
+      assert (pow2 (weight_of_ands f1 + weight_of_ands f2) * 2 = pow2 (weight_of_ands f1 + weight_of_ands f2 + 1));
+      multpow_powsum (weight_of_ands f1) (weight_of_ands f2);
+      assert (pow2 (weight_of_ands f1) * pow2 (weight_of_ands f2) = pow2 (weight_of_ands f1 + weight_of_ands f2))
+
+
+let apply_rule_8 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
+    : Pure formula_t (requires valid_formula_t f && Not? f && And? (Not?.f f))
+                     (ensures fun r -> (valid_formula_t r /\
+                                        equivalent f r /\
+                                        weight_of_ands r < weight_of_ands f /\
+                                        smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left)))
+    = let Not f1 = f in
+      let And f11 f12 = f1 in
+      let r = Or (Not f11) (Not f12) in
+      rule_8_prop f11 f12;
+      r
+
+
+let rule_9_prop (f:formula_t)
+    : Lemma (requires weight_of_ands f >= 2)
+            (ensures weight_of_ands f < weight_of_ands (Not (Not f)))
+    = pow_increases (weight_of_ands f);
+      pow_increases (pow2 (weight_of_ands f));
+      assert (weight_of_ands (Not (Not f)) = pow2 (pow2 (weight_of_ands f)))
+
+
+let apply_rule_9 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
+    : Pure formula_t (requires valid_formula_t f && Not? f && Not? (Not?.f f))
+                     (ensures fun r -> (valid_formula_t r /\
+                                        equivalent f r /\
+                                        weight_of_ands r < weight_of_ands f /\
+                                        smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left)))
+    = let Not f1 = f in
+      let Not f11 = f1 in
+      let r = f11 in
+      rule_9_prop r;
+      r
+
+
+let apply_at_top (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
+    : Pure formula_t (requires valid_formula_t f)
+                     (ensures fun r -> (valid_formula_t r /\
+                                        equivalent f r /\
+                                        f = r ==> not (Implies? f) /\
+                                        f = r ==> not (DImplies? f) /\
+                                        (f = r || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left))))
+                      (decreases f)
+    = match f with
+      | Var value -> f
+      | Not f1 -> if Or? f1 then apply_rule_7 f ors_above_left ands_above_left
+                  else if And? f1 then apply_rule_8 f ors_above_left ands_above_left
+                  else if Not? f1 then apply_rule_9 f ors_above_left ands_above_left
+                  else f
+      | Or f1 f2 -> if And? f2 then apply_rule_3 f ors_above_left ands_above_left
+                    else if Or? f2 then apply_rule_5 f ors_above_left ands_above_left
+                    else if And? f2 then apply_rule_4 f ors_above_left ands_above_left
+                    else f
+      | And f1 f2 -> if And? f2 then apply_rule_6 f ors_above_left ands_above_left
+                     else f
+      | Implies f1 f2 -> apply_rule_2 f ors_above_left ands_above_left
+      | DImplies f1 f2 -> apply_rule_1 f ors_above_left ands_above_left

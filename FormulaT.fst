@@ -103,6 +103,13 @@ let equivalent (f1:formula_t {valid_formula_t f1})
         truth_value f1 tau = truth_value f2 tau
 
 
+let rec seq_false (n:int)
+    : Pure (list bool) (requires n >= 0)
+                       (ensures fun r -> L.length r = n)
+    = if n = 0 then []
+      else false::(seq_false (n - 1))
+
+
 let rec pretty_print (f:formula_t) : Tot string 
     = match f with
         | Var value -> string_of_int value

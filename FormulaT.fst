@@ -4,6 +4,7 @@ open Utils
 module L = FStar.List.Tot.Base
 open FStar.Math.Lib
 open FStar.String
+open FStar.Classical
 
 
 type formula_t =
@@ -37,10 +38,17 @@ let rec variables_up_to (f:formula_t) (n:int)
         | DImplies f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
 
 
-let variables_up_to_monotone (f:formula_t) (n:int) (n':int)
+let rec variables_up_to_monotone (f:formula_t) (n:int) (n':int)
     : Lemma (requires variables_up_to f n && n <= n')
             (ensures variables_up_to f n')
-    = ()
+    = match f with
+        // | Var value -> if 0 <= value && value < n && n <= n' then ()
+        | Var value -> ()
+        | Not f -> variables_up_to_monotone f n n'
+        | Or f1 f2 -> variables_up_to_monotone f1 n n'; variables_up_to_monotone f2 n n'
+        | And f1 f2 -> variables_up_to_monotone f1 n n'; variables_up_to_monotone f2 n n'
+        | Implies f1 f2 ->variables_up_to_monotone f1 n n'; variables_up_to_monotone f2 n n'
+        | DImplies f1 f2 -> variables_up_to_monotone f1 n n'; variables_up_to_monotone f2 n n'
 
 
 let rec max_var (f:formula_t)
@@ -108,6 +116,75 @@ let rec seq_false (n:int)
                        (ensures fun r -> L.length r = n)
     = if n = 0 then []
       else false::(seq_false (n - 1))
+
+
+let rec assignment_relevant (f:formula_t) (n:nat) (tau1 : list bool) (tau2 : list bool)
+    : Lemma (requires valid_formula_t f && variables_up_to f n && 
+                      L.length tau1 >= n && L.length tau2 >= n &&
+                      interval_of_list tau1 0 n = interval_of_list tau2 0 n)
+            (ensures (variables_up_to_monotone f n (L.length tau1);
+                      variables_up_to_monotone f n (L.length tau2);
+                      truth_value f tau1 = truth_value f tau2))
+    = match f with
+        | Var value -> ()
+        | Not f1 ->
+            assignment_relevant f1 n tau1 tau2;
+            variables_up_to_monotone f1 n (L.length tau1);
+            variables_up_to_monotone f1 n (L.length tau2);
+            assert (truth_value f1 tau1 = truth_value f1 tau2)
+        | Or f1 f2 ->
+            assignment_relevant f1 n tau1 tau2;
+            assignment_relevant f2 n tau1 tau2;
+            variables_up_to_monotone f1 n (L.length tau1);
+            variables_up_to_monotone f1 n (L.length tau2);
+            variables_up_to_monotone f2 n (L.length tau1);
+            variables_up_to_monotone f2 n (L.length tau2);
+            assert (truth_value f1 tau1 = truth_value f1 tau2);
+            assert (truth_value f2 tau1 = truth_value f2 tau2)
+        | And f1 f2 ->
+            assignment_relevant f1 n tau1 tau2;
+            assignment_relevant f2 n tau1 tau2;
+            variables_up_to_monotone f1 n (L.length tau1);
+            variables_up_to_monotone f1 n (L.length tau2);
+            variables_up_to_monotone f2 n (L.length tau1);
+            variables_up_to_monotone f2 n (L.length tau2);
+            assert (truth_value f1 tau1 = truth_value f1 tau2);
+            assert (truth_value f2 tau1 = truth_value f2 tau2)
+        | Implies f1 f2 ->
+            assignment_relevant f1 n tau1 tau2;
+            assignment_relevant f2 n tau1 tau2;
+            variables_up_to_monotone f1 n (L.length tau1);
+            variables_up_to_monotone f1 n (L.length tau2);
+            variables_up_to_monotone f2 n (L.length tau1);
+            variables_up_to_monotone f2 n (L.length tau2);
+            assert (truth_value f1 tau1 = truth_value f1 tau2);
+            assert (truth_value f2 tau1 = truth_value f2 tau2)
+        | DImplies f1 f2 ->
+            assignment_relevant f1 n tau1 tau2;
+            assignment_relevant f2 n tau1 tau2;
+            variables_up_to_monotone f1 n (L.length tau1);
+            variables_up_to_monotone f1 n (L.length tau2);
+            variables_up_to_monotone f2 n (L.length tau1);
+            variables_up_to_monotone f2 n (L.length tau2);
+            assert (truth_value f1 tau1 = truth_value f1 tau2);
+            assert (truth_value f2 tau1 = truth_value f2 tau2)
+            
+
+let equivalent_trans (f1:formula_t) (f2:formula_t) (f3:formula_t)
+    : Lemma (requires valid_formula_t f1 /\ valid_formula_t f2 /\ valid_formula_t f3 /\ equivalent f1 f2 /\ equivalent f2 f3)
+            (ensures equivalent f1 f3)
+    = let aux (tau : list bool) : Lemma (requires variables_up_to f1 (L.length tau) && 
+                                    variables_up_to f3 (L.length tau))
+                                        (ensures truth_value f1 tau = truth_value f3 tau)
+          = let temp = seq_false (max_var f2) in 
+            variables_up_to_monotone f2 (L.length temp) (L.length (L.append tau temp));
+            assignment_relevant f1 (L.length tau) tau (L.append tau temp); 
+            variables_up_to_monotone f1 (L.length tau) (L.length (L.append tau temp));
+            assignment_relevant f3 (L.length tau) tau (L.append tau temp);
+            variables_up_to_monotone f3 (L.length tau) (L.length (L.append tau temp));
+            assert (truth_value f1 tau = truth_value f3 tau)
+      in
+      forall_intro (move_requires aux)
 
 
 let rec pretty_print (f:formula_t) : Tot string 

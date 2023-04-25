@@ -52,7 +52,7 @@ let rec count_and_pairs (f:formula_t) (ands_above_left:nat) : Tot nat (decreases
 let rec count_or_pairs (f:formula_t) (ors_above_left:nat) : Tot nat (decreases f)
     = match f with
         | Var value -> 0
-        | Not f-> count_or_pairs f ors_above_left
+        | Not f -> count_or_pairs f ors_above_left
         | Or f1 f2 -> count_or_pairs f1 ors_above_left + count_or_pairs f2 (ors_above_left + 1) + ors_above_left
         | And f1 f2 -> count_or_pairs f1 ors_above_left + count_or_pairs f2 ors_above_left
         | Implies f1 f2 -> count_or_pairs f1 ors_above_left + count_or_pairs f2 ors_above_left
@@ -271,7 +271,7 @@ let apply_at_top (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
                                         equivalent f r /\
                                         f = r ==> not (Implies? f) /\
                                         f = r ==> not (DImplies? f) /\
-                                        (f = r || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left))))
+                                        (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left))))
                       (decreases f)
     = match f with
       | Var value -> f
@@ -287,3 +287,90 @@ let apply_at_top (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
                      else f
       | Implies f1 f2 -> apply_rule_2 f ors_above_left ands_above_left
       | DImplies f1 f2 -> apply_rule_1 f ors_above_left ands_above_left
+
+
+let rule_3_or (f1:formula_t) (f2:formula_t) (f3:formula_t)
+    : Lemma (requires weight_of_ands f3 < weight_of_ands f2 && weight_of_ands f1 >= 2 && weight_of_ands f2 >= 2 && weight_of_ands f3 >= 2)
+            (ensures weight_of_ands (Or f1 f3) < weight_of_ands (Or f1 f2))
+    = assert (weight_of_ands (Or f1 f3) = weight_of_ands f1 * weight_of_ands f3);
+      assert (weight_of_ands (Or f1 f2) = weight_of_ands f1 * weight_of_ands f2);
+      less_than_mult_right (weight_of_ands f1) (weight_of_ands f2) (weight_of_ands f3);
+      assert (weight_of_ands f1 * weight_of_ands f3 < weight_of_ands f1 * weight_of_ands f2)
+
+
+let rule_3_under_not (f1:formula_t) (f2:formula_t)
+    : Lemma (requires weight_of_ands f1 <= weight_of_ands f2)
+            (ensures weight_of_ands (Not f1) <= weight_of_ands (Not f2))
+    = assert (weight_of_ands (Not f1) = pow2 (weight_of_ands f1));
+      assert (weight_of_ands (Not f2) = pow2 (weight_of_ands f2));
+      pow_monotone (weight_of_ands f1) (weight_of_ands f2)
+
+
+let rule_3_under_not_2 (f1:formula_t) (f2:formula_t)
+    : Lemma (requires weight_of_ands f1 < weight_of_ands f2)
+            (ensures weight_of_ands (Not f1) < weight_of_ands (Not f2))
+    = assert (weight_of_ands (Not f1) = pow2 (weight_of_ands f1));
+      assert (weight_of_ands (Not f2) = pow2 (weight_of_ands f2));
+      pow_monotone_strict (weight_of_ands f1) (weight_of_ands f2)
+  
+
+let rec apply_rule (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
+    : Pure formula_t (requires valid_formula_t f)
+                     (ensures fun r -> (valid_formula_t r /\
+                                        equivalent f r /\
+                                        (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left))))
+    = let r = apply_at_top f ors_above_left ands_above_left in
+      if r <> f then r
+      else match f with
+        | Var value -> f
+        | Not f1 ->
+            assert (f = Not f1);
+            let f1_step = apply_rule f1 ors_above_left ands_above_left in
+            rule_3_under_not f1_step f1;
+            if weight_of_ands f1_step < weight_of_ands f1 then rule_3_under_not_2 f1_step f1;
+            Not f1_step
+        | Or f1 f2 ->
+            let f1_step = apply_rule f1 ors_above_left ands_above_left in
+            if f1 = f1_step then
+            (
+              let f2_step = apply_rule f2 (ors_above_left + 1) ands_above_left in
+              assert (equivalent f2 f2_step);
+              assert (equivalent (Or f1 f2) (Or f1 f2_step));
+              if weight_of_ands f2_step < weight_of_ands f2 then rule_3_or f1 f2 f2_step;
+              Or f1 f2_step
+            )
+            else 
+            (
+              assert (equivalent f1 f1_step);
+              assert (equivalent (Or f1 f2) (Or f1_step f2));
+              if weight_of_ands f1_step < weight_of_ands f1 then rule_3_or f2 f1 f1_step;
+              Or f1_step f2
+            )
+        | And f1 f2 ->
+            let f1_step = apply_rule f1 ors_above_left ands_above_left in
+            if f1 = f1_step then
+            (
+              let f2_step = apply_rule f2 ors_above_left (ands_above_left + 1) in
+              And f1 f2_step
+            )
+            else And f1_step f2
+
+
+// let rec convert_to_cnf (f:formula_t)
+//     : Pure formula_t (requires valid_formula_t f)
+//                      (ensures fun r -> (valid_formula_t r /\ equivalent f r ))
+//                      (decreases weight_of_ands f)
+//                      (decreases count_dimplies f)
+//                      (decreases count_implies f)
+//                      (decreases count_or_pairs f 0)
+//                      (decreases count_and_pairs f 0)
+//     = let r = apply_rule f 0 0 in
+//       assert (equivalent f r);
+//       if r <> f then 
+//       (
+//         let res = convert_to_cnf r in
+//         assert (equivalent r res);
+//         equivalent_trans f r res;
+//         res
+//       )
+//       else r

@@ -20,6 +20,16 @@ let rec n_falses (n:int)
       else false::(n_falses (n - 1))
 
 
+let interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interval:nat {start_interval <= end_interval}) 
+    : list a
+    = fst (L.splitAt (end_interval - start_interval + 1) (snd (L.splitAt start_interval l)))
+
+
+// let thd (#a:Type) (#b:Type) (#c:Type) (r:(a & b & c)) : c
+//     = let x, y, z = r in
+//       z
+
+
 let smaller (a : list nat) (b : list nat {L.length a = L.length b && L.length a = 5})
     : bool
     = L.hd a < L.hd b ||

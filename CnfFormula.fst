@@ -160,3 +160,9 @@ let truth_value_clause (clause : list int {valid_clause clause})
 let truth_value_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
                             (tau : list bool {variables_up_to_cnf_formula rf (length tau)})
     = forall clause . mem clause rf ==> truth_value_clause clause tau
+
+
+let agree (tau1 : list bool) (tau2 : list bool) (start_interval:nat) 
+          (end_interval:nat {start_interval <= end_interval && length tau1 >= end_interval && length tau2 >= end_interval}) 
+    : bool
+    = interval_of_list tau1 start_interval end_interval = interval_of_list tau2 start_interval end_interval

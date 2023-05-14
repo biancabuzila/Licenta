@@ -71,3 +71,28 @@ formula: out ./FormulaT.fst
 	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'FormulaT' ./FormulaT.fst --record_hints
 	$(OCAMLOPT) out/FormulaT.ml -o formula.exe
 	./formula.exe
+
+cnfformula: out ./CnfFormula.fst
+	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'CnfFormula' ./CnfFormula.fst --record_hints
+	$(OCAMLOPT) out/CnfFormula.ml -o cnfformula.exe
+	./cnfformula.exe
+
+tseitincore: out ./TseitinCore.fst
+	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'TseitinCore' ./TseitinCore.fst --record_hints
+	$(OCAMLOPT) out/TseitinCore.ml -o tseitincore.exe
+	./tseitincore.exe
+
+tseitin: out ./Tseitin.fst
+	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'Tseitin' ./Tseitin.fst --record_hints
+	$(OCAMLOPT) out/Tseitin.ml -o tseitin.exe
+	./tseitin.exe
+
+tseitinproofs: out ./TseitinProofs.fst
+	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'TseitinProofs' ./TseitinProofs.fst --record_hints
+	$(OCAMLOPT) out/TseitinProofs.ml -o tseitinproofs.exe
+	./tseitinproofs.exe
+
+main: out ./Main.fst
+	$(FSTAR) $(FSTAR_DEFAULT_ARGS) --odir out --codegen OCaml --extract 'Main' ./Main.fst --record_hints
+	$(OCAMLOPT) out/Main.ml -o main.exe
+	./main.exe

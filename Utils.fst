@@ -1,42 +1,29 @@
 module Utils
 
+open FStar.List.Tot
 module L = FStar.List.Tot.Base
 open FStar.Mul
 
-
-let rec my_nth (#a:Type) (l : list a) (n:int {n >= 0 && n < L.length l}) : a
-    = if n = 0 then L.hd l
-      else my_nth (L.tl l) (n - 1)
 
 
 let integer_to_char_sequence (x:int) : list FStar.String.char
     = FStar.String.list_of_string (string_of_int x)
 
 
-let rec n_falses (n:int)
-    : Pure (list bool) (requires n >= 0)
+let rec n_falses (n:nat)
+    : Pure (list bool) (requires True)
                        (ensures fun r -> L.length r = n)
     = if n = 0 then []
       else false::(n_falses (n - 1))
 
 
-let interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interval:nat {start_interval <= end_interval}) 
-    : list a
-    = fst (L.splitAt (end_interval - start_interval + 1) (snd (L.splitAt start_interval l)))
-
-
-// let thd (#a:Type) (#b:Type) (#c:Type) (r:(a & b & c)) : c
-//     = let x, y, z = r in
-//       z
-
-
 let smaller (a : list nat) (b : list nat {L.length a = L.length b && L.length a = 5})
     : bool
     = L.hd a < L.hd b ||
-      (L.hd a <= L.hd b && my_nth a 1 < my_nth b 1) ||
-      (L.hd a <= L.hd b && my_nth a 1 <= my_nth b 1 && my_nth a 2 < my_nth b 2) ||
-      (L.hd a <= L.hd b && my_nth a 1 <= my_nth b 1 && my_nth a 2 <= my_nth b 2 &&  my_nth a 3 < my_nth b 3) ||
-      (L.hd a <= L.hd b && my_nth a 1 <= my_nth b 1 && my_nth a 2 <= my_nth b 2 &&  my_nth a 3 <= my_nth b 3 && my_nth a 4 < my_nth b 4)
+      (L.hd a <= L.hd b && L.index a 1 < L.index b 1) ||
+      (L.hd a <= L.hd b && L.index a 1 <= L.index b 1 && L.index a 2 < L.index b 2) ||
+      (L.hd a <= L.hd b && L.index a 1 <= L.index b 1 && L.index a 2 <= L.index b 2 && L.index a 3 < L.index b 3) ||
+      (L.hd a <= L.hd b && L.index a 1 <= L.index b 1 && L.index a 2 <= L.index b 2 && L.index a 3 <= L.index b 3 && L.index a 4 < L.index b 4)
 
 
 let rec mult2_upper (x:int)
@@ -94,3 +81,23 @@ let less_than_mult_right (a:int) (b:int) (c:int)
     : Lemma (requires a >= 1 && b >= 1 && c >= 1 && c < b)
             (ensures a * c < a * b)
     = ()
+
+
+let rec interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interval:nat)
+    : Pure (list a) (requires start_interval <= end_interval && end_interval <= L.length l)
+                    (ensures fun r -> L.length r = end_interval - start_interval /\
+                                       (forall (i:nat) . start_interval <= i && i < end_interval ==> L.index l i == L.index r (i - start_interval)))
+//     = fst (L.splitAt (end_interval - start_interval) (snd (L.splitAt start_interval l)))
+    = if start_interval = 0 then 
+        if end_interval = 0 then []
+        else (L.hd l)::interval_of_list (L.tl l) 0 (end_interval - 1)
+      else interval_of_list (L.tl l) (start_interval - 1) (end_interval - 1)
+
+
+let rec same_values_append (l1 : list bool) (l2 : list bool) (l3 : list bool)
+    : Lemma (requires True)
+            (ensures interval_of_list (l1 @ l2 @ l3) (L.length l1) (L.length l1 + L.length l2) = l2)
+    = if L.length l1 = 0 then
+          if L.length l2 = 0 then ()
+          else same_values_append [] (L.tl l2) l3
+      else same_values_append (L.tl l1) l2 l3

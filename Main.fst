@@ -1,10 +1,10 @@
 module Main
 
+open FStar.List.Tot.Base
 open FStar.String
 open FStar.IO
 open Utils
-// open FormulaT
-open FStar.List.Tot.Base
+open FormulaT
 
 
 let rec list_int_to_list_string (a:list int) : list string
@@ -29,9 +29,9 @@ let rec list_int_to_list_string (a:list int) : list string
          //   let out1 = FStar.Printf.sprintf "%s\n" (pretty_print test_formula) in
             //   print_string out1;
             //   print_string (pretty_print var_for_rule_3)
-           let start_interval = 4 in
-           let end_interval = 6 in
-           let l1 = [1;2;3;4;5;6;7;8;9;10] in
-           let interv = interval_of_list l1 2 5 in
+         //   let start_interval = 4 in
+         //   let end_interval = 6 in
+           let l1 = [1;2;3;4;5] in
+           let interv = interval_of_list l1 0 0 in
            print_string (concat "" (list_int_to_list_string interv))
 

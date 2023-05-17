@@ -23,7 +23,7 @@ let lit_to_var (lit:int {valid_literal lit})
 //     : Tot bool (decreases term) 
 //     = match term with
 //         | [] -> true
-//         | L.hd::L.tl -> if f L.hd then verify_validity f L.tl
+//         | hd::tl -> if f hd then verify_validity f tl
 //                     else false
 
 
@@ -45,14 +45,6 @@ let valid_variable (v:int)
     = v >= 0
 
 
-let variable_in_interval (v:int {valid_variable v}) 
-                         (n:nat) 
-                         (start_interval:nat {n <= start_interval}) 
-                         (end_interval:nat {start_interval <= end_interval})
-    : Tot bool
-    = (0 <= v && v < n) || (start_interval <= v && v < end_interval)
-
-
 let variables_up_to_literal (lit:int {valid_literal lit})
                             (n:nat)
     : Tot bool
@@ -64,7 +56,7 @@ let variables_up_to_clause (clause : list int {valid_clause clause})
     // : Tot bool (decreases clause)
     // = match clause with
     //     | [] -> true
-    //     | L.hd::L.tl -> if variables_up_to_literal L.hd n then variables_up_to_clause L.tl n
+    //     | hd::tl -> if variables_up_to_literal hd n then variables_up_to_clause tl n
     //                 else false
     = forall lit . L.mem lit clause ==> variables_up_to_literal lit n
 
@@ -74,9 +66,17 @@ let variables_up_to_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
     // : Tot bool (decreases rf)
     // = match rf with
     //     | [] -> true
-    //     | L.hd::L.tl -> if variables_up_to_clause L.hd n then variables_up_to_cnf_formula L.tl n
+    //     | hd::tl -> if variables_up_to_clause hd n then variables_up_to_cnf_formula tl n
     //                 else false
     = forall clause . L.mem clause rf ==> variables_up_to_clause clause n
+
+
+let variable_in_interval (v:int {valid_variable v}) 
+                         (n:nat) 
+                         (start_interval:nat {n <= start_interval}) 
+                         (end_interval:nat {start_interval <= end_interval})
+    : Tot bool
+    = (0 <= v && v < n) || (start_interval <= v && v < end_interval)
 
 
 let variables_in_interval_literal (lit:int)
@@ -112,6 +112,50 @@ let rec variables_in_interval (f : list (list int))
         | [] -> true
         | hd::tl -> if variables_in_interval_clause hd n start_interval end_interval then variables_in_interval tl n start_interval end_interval
                     else false
+
+
+let variable_in_interval_monotone (v:int)
+                                  (n:nat)
+                                  (start_interval:nat)
+                                  (end_interval:nat)
+                                  (end_interval':nat)
+    : Lemma (requires valid_variable v /\ 
+                      n <= start_interval /\ start_interval <= end_interval /\ end_interval <= end_interval' /\
+                      variable_in_interval v n start_interval end_interval)
+            (ensures variable_in_interval v n start_interval end_interval')
+    = ()
+
+
+let rec variables_in_interval_clause_monotone (clause : list int)
+                                              (n:nat)
+                                              (start_interval:nat)
+                                              (end_interval:nat)
+                                              (end_interval':nat)
+    : Lemma (requires valid_clause clause /\ 
+                      n <= start_interval /\ start_interval <= end_interval /\ end_interval <= end_interval' /\
+                      variables_in_interval_clause clause n start_interval end_interval)
+            (ensures variables_in_interval_clause clause n start_interval end_interval')
+    = match clause with
+        | [] -> ()
+        | hd::tl -> 
+              variable_in_interval_monotone (lit_to_var hd) n start_interval end_interval end_interval'; 
+              variables_in_interval_clause_monotone tl n start_interval end_interval end_interval'
+
+
+let rec variables_in_interval_monotone (f : list (list int))
+                                       (n:nat)
+                                       (start_interval:nat)
+                                       (end_interval:nat)
+                                       (end_interval':nat)
+    : Lemma (requires valid_cnf_formula f /\ 
+                      n <= start_interval /\ start_interval <= end_interval /\ end_interval <= end_interval' /\
+                      variables_in_interval f n start_interval end_interval)
+            (ensures variables_in_interval f n start_interval end_interval')
+    = match f with
+        | [] -> ()
+        | hd::tl -> 
+              variables_in_interval_clause_monotone hd n start_interval end_interval end_interval'; 
+              variables_in_interval_monotone tl n start_interval end_interval end_interval'
 
 
 let pos_var_to_lit (v:int {valid_variable v}) 
@@ -207,12 +251,12 @@ let negate_literal (v:int) (tau : list bool)
     = ()
 
 
-let rec same_list (l1 : list bool) (l2 : list bool) (n:nat)
-    : Lemma (requires L.length l1 = n && L.length l2 = n &&
-                      interval_of_list l1 0 n = interval_of_list l2 0 n)
-            (ensures l1 = l2)
-    = if n = 0 then ()
-      else same_list (L.tl l1) (L.tl l2) (n - 1)
+// let rec same_list (l1 : list bool) (l2 : list bool) (n:nat)
+//     : Lemma (requires L.length l1 = n && L.length l2 = n &&
+//                       interval_of_list l1 0 n = interval_of_list l2 0 n)
+//             (ensures l1 = l2)
+//     = if n = 0 then ()
+//       else same_list (L.tl l1) (L.tl l2) (n - 1)
 
 
 // let equal_values (l1 : list bool) (l2 : list bool) (a:nat) (b:nat)
@@ -228,23 +272,12 @@ let rec assignment_relevant_cnf_formula (rf : list (list int)) (tau : list bool)
                       L.length tau >= n /\ L.length tau' >= n /\
                       interval_of_list tau 0 n = interval_of_list tau' 0 n)
             (ensures truth_value_cnf_formula rf tau == truth_value_cnf_formula rf tau')
-            (decreases %[L.length tau; L.length tau'])
-    = if L.length tau' = n then
-      (
-          if L.length tau = n then 
-          (
-              same_list tau tau' n;
-              assert (tau = tau');
-              ()
-          )
-          else
-          (
-              assert (L.length tau > n);
-              assert (L.length (interval_of_list tau 0 (L.length tau - 1)) >= n);
-              assignment_relevant_cnf_formula rf (interval_of_list tau 0 (L.length tau - 1)) tau' n
-          )
-      )
-      else assignment_relevant_cnf_formula rf tau (interval_of_list tau' 0 (L.length tau' - 1)) n
+    = match rf with
+        | [] -> ()
+        | hd::tl -> 
+            assert (forall lit . L.mem lit hd ==> truth_value_literal lit tau = truth_value_literal lit tau');
+            assert (truth_value_clause hd tau == truth_value_clause hd tau');
+            assignment_relevant_cnf_formula tl tau tau' n
 
 
 let transfer_truth_value_lit (lit:int) (tau : list bool) (tau' : list bool)

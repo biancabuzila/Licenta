@@ -142,8 +142,8 @@ let combine (tau : list bool) (tau1 : list bool) (tau2 : list bool) (n:nat)
       r
 
 
-let combine1 (tau : list bool) (tau1 : list bool) (n:nat) (start_interval:nat)
-             (end_interval:nat) (v:int) (last:bool)
+let combine1 (tau : list bool) (tau1 : list bool) 
+             (n:nat) (start_interval:nat) (v:int) (last:bool)
     : Pure (list bool) (requires n <= start_interval &&
                                  start_interval <= v &&
                                  L.length tau = n &&
@@ -288,7 +288,7 @@ let lemma_dimplies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                   truth_value_literal (pos_var_to_lit v2) tau) <==>
                   truth_value_literal (pos_var_to_lit v) tau))
     = let rf = dimplies_clauses v1 v2 v in
-      //assert (variables_up_to_cnf_formula rf (L.length tau));
+      // assert (variables_up_to_cnf_formula rf (L.length tau));
       assert (truth_value_cnf_formula rf tau <==>
                 truth_value_clause (L.index rf 0) tau /\
                 truth_value_clause (L.index rf 1) tau /\

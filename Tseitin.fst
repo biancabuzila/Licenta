@@ -112,12 +112,73 @@ let satisfied_cnf_formula (rf : list (list int)) (tau : list bool)
       assignment_relevant_cnf_formula rf tau tau' n
 
 
-// let tseitin (f:formula_t)
-//     : Pure (list (list int)) (requires valid_formula_t f)
-//                              (ensures fun r -> (valid_cnf_formula r /\ equisatisfiable f r))
-//     = let n = max_var f in
-//       let rf, v, end_interval = tseitin_cnf f n n in
-//       let r = L.append rf [[pos_var_to_lit v]] in
-//       //tseitin_follows f rf v n end_interval;
-//       r
+let tseitin_follows (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
+    : Lemma (requires valid f rf v n n end_interval /\
+                      tseitin_same_value f rf v n n end_interval /\
+                      tseitin_can_extend f rf v n n end_interval)
+            (ensures equisatisfiable f (rf @ [[pos_var_to_lit v]]))
+    = if satisfiable f then
+      (
+          let conditions (tau_short : list bool) =
+              L.length tau_short = max_var f &&
+              truth_value f tau_short
+          in
+          let extract_from_exists : (tau_short : list bool {conditions tau_short}) -> prop = fun (tau_short : list bool) -> conditions tau_short in
+          let tau_short : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
+
+          variables_up_to_max_var f n;
+          assert (max_var f <= n);
+          let tau : erased (list bool) = tau_short @ (n_falses (n - max_var f)) in
+          assignment_relevant f (max_var f) tau_short tau;
+          assert (truth_value f tau);
+          assert (can_extend tau f rf v n n end_interval);
+
+          let conditions (tau' : list bool) =
+            //   tau <= tau' /\
+              L.length tau' = end_interval /\
+              truth_value_cnf_formula rf tau' /\
+              truth_value f tau = truth_value_literal (pos_var_to_lit v) tau'
+          in
+          let extract_from_exists : (tau' : list bool {conditions tau'}) -> prop = fun (tau' : list bool) -> conditions tau' in
+          let tau' : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
+
+          assert (truth_value_literal (pos_var_to_lit v) tau');
+          assert (truth_value_cnf_formula rf tau');
+          satisfied_cnf_formula (rf @ [[pos_var_to_lit v]]) tau'
+      );
+      if satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]) then
+      (
+          let conditions (tau_short : list bool) =
+              L.length tau_short = max_var_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
+              truth_value_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short
+          in
+          let extract_from_exists : (tau_short : list bool {conditions tau_short}) -> prop = fun (tau_short : list bool) -> conditions tau_short in
+          let tau_short : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
+
+          variables_up_to_max_var_cnf_formula(rf @ [[pos_var_to_lit v]]) end_interval;
+          assert (end_interval >= L.length tau_short);
+          let tau : erased (list bool) = tau_short @ (n_falses (end_interval - (L.length tau_short))) in
+          assignment_relevant_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short tau (L.length tau_short);
+          assert (truth_value_cnf_formula rf tau);
+          assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau);
+          assert (truth_value_clause [pos_var_to_lit v] tau);
+          assert (variables_up_to_clause [pos_var_to_lit v] (L.length tau));
+          assert (variables_up_to_literal (pos_var_to_lit v) (L.length tau));
+          assert (truth_value_literal (pos_var_to_lit v) tau);
+          variables_up_to_monotone f n end_interval;
+          variables_up_to_max_var f end_interval;
+          assert (truth_value_literal (pos_var_to_lit v) tau = truth_value f tau);
+          assert (truth_value f tau);
+          satisfied_formula f tau
+      )
+
+
+let tseitin (f:formula_t)
+    : Pure (list (list int)) (requires valid_formula_t f)
+                             (ensures fun r -> (valid_cnf_formula r /\ equisatisfiable f r))
+    = let n = max_var f in
+      let rf, v, end_interval = tseitin_cnf f n n in
+      let r = L.append rf [[pos_var_to_lit v]] in
+      tseitin_follows f rf v n end_interval;
+      r
 

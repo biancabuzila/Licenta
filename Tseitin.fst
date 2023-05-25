@@ -38,7 +38,8 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
             let end_interval = start_interval in
 
             let aux (tau : list bool) : Lemma (requires L.length tau = n)
-                                              (ensures can_extend tau f rf v n start_interval end_interval)
+                                              (ensures L.length tau = n /\
+                                                       can_extend tau f rf v n start_interval end_interval)
                 = let tau' = tau @ (n_falses (end_interval - n)) in
                   LP.append_length tau (n_falses (end_interval - n));
                   assert (L.length tau' = end_interval)
@@ -90,12 +91,13 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
 
 
 let satisfied_formula (f:formula_t) (tau : list bool)
-    : Lemma (requires valid_formula_t f && variables_up_to f (L.length tau))
+    : Lemma (requires valid_formula_t f && variables_up_to f (L.length tau) && truth_value f tau)
             (ensures satisfiable f)
     = let n : erased nat = max_var f in
       assert (variables_up_to f n);
       variables_up_to_max_var f (L.length tau);
-      let tau' : erased (list bool) = interval_of_list tau 0 n in
+      let tau' = interval_of_list tau 0 n in
+      same_values_append [] tau' [];
       assignment_relevant f n tau tau'
 
 
@@ -108,69 +110,140 @@ let satisfied_cnf_formula (rf : list (list int)) (tau : list bool)
       assert (variables_up_to_cnf_formula rf n);
       variables_up_to_max_var_cnf_formula rf (L.length tau);
       assert (L.length tau >= n);
-      let tau' : erased (list bool) = interval_of_list tau 0 n in
+      let tau' = interval_of_list tau 0 n in
+      same_values_append [] tau' [];
       assignment_relevant_cnf_formula rf tau tau' n
+
+
+// let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
+//   : Tot (w : Ghost.erased a {p w})
+//   = admit()
+
+
+// // let indefinite_description_ghost_bool (a:Type) (p : (a -> bool) {exists x. p x})
+// //   : GTot (x : a {p x})
+// //   = let w = indefinite_description_tot_bool a p in
+// //     let x = Ghost.reveal w in
+// //     x
+
+
+// let extract_value (p : ((list bool) -> bool) {exists x . p x}) : erased (list bool) =
+//     let value : (list bool) = indefinite_description_tot_bool (list bool) p in
+//     value 
+
+
+let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
+    : Lemma (requires valid f rf v n n end_interval /\
+                      tseitin_same_value f rf v n n end_interval /\
+                      tseitin_can_extend f rf v n n end_interval )
+            (ensures satisfiable f ==> (valid_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
+                                        equisatisfiable f (rf @ [[pos_var_to_lit v]])))
+    = append_valid_cnf_formulas rf [[pos_var_to_lit v]];
+      LP.append_length rf [[pos_var_to_lit v]];
+      
+      let conditions (tau_short : list bool) : bool =
+          L.length tau_short = max_var f &&
+          truth_value f tau_short
+      in
+      assume (exists x . conditions x);
+      let tau_short = extract_value conditions in
+      
+      assert (L.length tau_short = max_var f);
+      variables_up_to_max_var f n;
+      assert (max_var f <= n);
+      let tau = tau_short @ (n_falses (n - max_var f)) in
+      LP.append_length tau_short (n_falses (n - max_var f));
+      same_values_append [] tau_short [];
+      same_values_append [] tau_short (n_falses (n - max_var f));
+      assignment_relevant f (max_var f) tau_short tau;
+      assert (truth_value f tau);
+      assert (can_extend tau f rf v n n end_interval);
+
+      let conditions (tau' : list bool) =
+          is_prefix tau tau' &&
+          L.length tau' = end_interval &&
+          truth_value_cnf_formula rf tau' &&
+          truth_value f tau = truth_value_literal (pos_var_to_lit v) tau'
+      in
+      assume (exists x . conditions x);
+      let tau' = extract_value conditions in
+
+      assert (truth_value_cnf_formula rf tau');
+      assert (pos_var_to_lit v = v + 1);
+      assert (lit_to_var (pos_var_to_lit v) = v);
+      append_variables_in_interval rf [[pos_var_to_lit v]] n n end_interval;
+      assert (truth_value_literal (pos_var_to_lit v) tau');
+      assert (valid_literal (pos_var_to_lit v));
+      assert (valid_clause [pos_var_to_lit v]);
+      assert (valid_cnf_formula [[pos_var_to_lit v]]);
+      assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau');
+      append_true_cnf_formulas rf [[pos_var_to_lit v]] tau';
+      satisfied_cnf_formula (rf @ [[pos_var_to_lit v]]) tau'
+
+
+let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
+    : Lemma (requires valid f rf v n n end_interval /\
+                      tseitin_same_value f rf v n n end_interval /\
+                      tseitin_can_extend f rf v n n end_interval)
+            (ensures valid_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
+                     satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]) ==> equisatisfiable f (rf @ [[pos_var_to_lit v]]))
+    = append_valid_cnf_formulas rf [[pos_var_to_lit v]];
+      LP.append_length rf [[pos_var_to_lit v]];
+      
+      let conditions (tau_short : list bool) =
+          L.length tau_short = max_var_cnf_formula (rf @ [[pos_var_to_lit v]]) &&
+          truth_value_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short
+      in
+      assume (exists x . conditions x);
+      let tau_short = extract_value conditions in
+      
+      assert (pos_var_to_lit v = v + 1);
+      assert (lit_to_var (pos_var_to_lit v) = v);
+      variables_up_to_max_var_cnf_formula rf end_interval;
+      variables_up_to_max_var_cnf_formula [[pos_var_to_lit v]] end_interval;
+      append_cnf_formulas_variables_up_to_max_var rf [[pos_var_to_lit v]] end_interval;
+      variables_up_to_max_var_cnf_formula (rf @ [[pos_var_to_lit v]]) end_interval;
+
+      assert (end_interval >= L.length tau_short);
+      let tau = tau_short @ (n_falses (end_interval - (L.length tau_short))) in
+      LP.append_length tau_short (n_falses (end_interval - (L.length tau_short)));
+      same_values_append [] tau_short [];
+      same_values_append [] tau_short (n_falses (end_interval - (L.length tau_short)));
+      assignment_relevant_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short tau (L.length tau_short);
+
+      true_parts_of_cnf_formula rf [[pos_var_to_lit v]] tau;
+      assert (truth_value_cnf_formula rf tau);
+      assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau);
+
+      assert (truth_value_clause [pos_var_to_lit v] tau);
+      assert (variables_up_to_clause [pos_var_to_lit v] (L.length tau));
+      assert (variables_up_to_literal (pos_var_to_lit v) (L.length tau));
+      assert (truth_value_literal (pos_var_to_lit v) tau);
+      variables_up_to_monotone f n end_interval;
+      variables_up_to_max_var f end_interval;
+
+      assert (tau = tau_short @ (n_falses (end_interval - (L.length tau_short))));
+      assert (L.length (n_falses (end_interval - (L.length tau_short))) = end_interval - (L.length tau_short));
+      LP.append_length tau_short (n_falses (end_interval - (L.length tau_short)));
+      assert (L.length tau = (L.length tau_short) + (L.length (n_falses (end_interval - (L.length tau_short)))));
+      assert (L.length tau = end_interval);
+      assert (variables_up_to f (L.length tau));
+      assert (truth_value_literal (pos_var_to_lit v) tau = truth_value f tau);
+      assert (truth_value f tau);
+      satisfied_formula f tau
 
 
 let tseitin_follows (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
     : Lemma (requires valid f rf v n n end_interval /\
                       tseitin_same_value f rf v n n end_interval /\
                       tseitin_can_extend f rf v n n end_interval)
-            (ensures equisatisfiable f (rf @ [[pos_var_to_lit v]]))
-    = if satisfiable f then
-      (
-          let conditions (tau_short : list bool) =
-              L.length tau_short = max_var f &&
-              truth_value f tau_short
-          in
-          let extract_from_exists : (tau_short : list bool {conditions tau_short}) -> prop = fun (tau_short : list bool) -> conditions tau_short in
-          let tau_short : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
-
-          variables_up_to_max_var f n;
-          assert (max_var f <= n);
-          let tau : erased (list bool) = tau_short @ (n_falses (n - max_var f)) in
-          assignment_relevant f (max_var f) tau_short tau;
-          assert (truth_value f tau);
-          assert (can_extend tau f rf v n n end_interval);
-
-          let conditions (tau' : list bool) =
-            //   tau <= tau' /\
-              L.length tau' = end_interval /\
-              truth_value_cnf_formula rf tau' /\
-              truth_value f tau = truth_value_literal (pos_var_to_lit v) tau'
-          in
-          let extract_from_exists : (tau' : list bool {conditions tau'}) -> prop = fun (tau' : list bool) -> conditions tau' in
-          let tau' : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
-
-          assert (truth_value_literal (pos_var_to_lit v) tau');
-          assert (truth_value_cnf_formula rf tau');
-          satisfied_cnf_formula (rf @ [[pos_var_to_lit v]]) tau'
-      );
-      if satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]) then
-      (
-          let conditions (tau_short : list bool) =
-              L.length tau_short = max_var_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
-              truth_value_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short
-          in
-          let extract_from_exists : (tau_short : list bool {conditions tau_short}) -> prop = fun (tau_short : list bool) -> conditions tau_short in
-          let tau_short : list bool = FStar.IndefiniteDescription.indefinite_description_ghost (list bool) extract_from_exists in
-
-          variables_up_to_max_var_cnf_formula(rf @ [[pos_var_to_lit v]]) end_interval;
-          assert (end_interval >= L.length tau_short);
-          let tau : erased (list bool) = tau_short @ (n_falses (end_interval - (L.length tau_short))) in
-          assignment_relevant_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short tau (L.length tau_short);
-          assert (truth_value_cnf_formula rf tau);
-          assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau);
-          assert (truth_value_clause [pos_var_to_lit v] tau);
-          assert (variables_up_to_clause [pos_var_to_lit v] (L.length tau));
-          assert (variables_up_to_literal (pos_var_to_lit v) (L.length tau));
-          assert (truth_value_literal (pos_var_to_lit v) tau);
-          variables_up_to_monotone f n end_interval;
-          variables_up_to_max_var f end_interval;
-          assert (truth_value_literal (pos_var_to_lit v) tau = truth_value f tau);
-          assert (truth_value f tau);
-          satisfied_formula f tau
-      )
+            (ensures valid_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
+                     equisatisfiable f (rf @ [[pos_var_to_lit v]]))
+    = append_valid_cnf_formulas rf [[pos_var_to_lit v]];
+      equisatisfiable_f f rf v n end_interval;
+      assert (satisfiable f ==> satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]));
+      equisatisfiable_cnf_formula f rf v n end_interval;
+      assert (satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]) ==> satisfiable f)
 
 
 let tseitin (f:formula_t)
@@ -181,4 +254,3 @@ let tseitin (f:formula_t)
       let r = L.append rf [[pos_var_to_lit v]] in
       tseitin_follows f rf v n end_interval;
       r
-

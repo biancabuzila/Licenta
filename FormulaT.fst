@@ -188,9 +188,12 @@ let equivalent_trans (f1:formula_t) (f2:formula_t) (f3:formula_t)
     : Lemma (requires valid_formula_t f1 /\ valid_formula_t f2 /\ valid_formula_t f3 /\
                       equivalent f1 f2 /\ equivalent f2 f3)
             (ensures equivalent f1 f3)
-    = let aux (tau : list bool) : Lemma (requires variables_up_to f1 (L.length tau) && 
-                                                  variables_up_to f3 (L.length tau))
-                                        (ensures truth_value f1 tau = truth_value f3 tau)
+    = let aux (tau : list bool) 
+          : Lemma (requires variables_up_to f1 (L.length tau) && 
+                            variables_up_to f3 (L.length tau))
+                  (ensures variables_up_to f1 (L.length tau) && 
+                           variables_up_to f3 (L.length tau) &&
+                           truth_value f1 tau = truth_value f3 tau)
           = let temp = seq_false (max_var f2) in 
             
             LP.append_length tau temp;

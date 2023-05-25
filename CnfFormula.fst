@@ -1,6 +1,7 @@
 module CnfFormula
 
 // module LP = FStar.List.Tot.Properties
+open FStar.List.Tot
 module L = FStar.List.Tot.Base
 open FStar.Classical
 open Utils
@@ -20,7 +21,7 @@ let lit_to_var (lit:int {valid_literal lit})
 
 
 // let rec verify_validity (#a:Type) (f : (subterm:a -> bool)) (term : list a)
-//     : Tot bool (decreases term) 
+//     : Tot bool
 //     = match term with
 //         | [] -> true
 //         | hd::tl -> if f hd then verify_validity f tl
@@ -28,13 +29,22 @@ let lit_to_var (lit:int {valid_literal lit})
 
 
 let valid_clause (clause : list int)
+    // : Tot (r:bool {r ==> (forall lit . L.mem lit clause ==> valid_literal lit)})
+    // = match clause with
+    //     | [] -> true
+    //     | hd::tl -> if valid_literal hd then valid_clause tl
+    //                 else false
     // : Tot bool
     // = verify_validity valid_literal clause
     = forall (lit:int {L.mem lit clause}) . valid_literal lit
-    // = forall lit . L.mem lit clause ==> valid_literal lit
 
 
 let valid_cnf_formula (f : list (list int))
+    // : Tot (r:bool {r ==> (forall (clause : list int) . L.mem clause f ==> valid_clause clause)})
+    // = match f with
+    //     | [] -> true
+    //     | hd::tl -> if valid_clause hd then valid_cnf_formula tl
+    //                 else false
     // : Tot bool
     // = verify_validity valid_clause f
     = forall (clause : list int) . L.mem clause f ==> valid_clause clause
@@ -52,8 +62,8 @@ let variables_up_to_literal (lit:int {valid_literal lit})
 
 
 let variables_up_to_clause (clause : list int {valid_clause clause})
-                           (n:nat)
-    // : Tot bool (decreases clause)
+                               (n:nat)
+    // : Tot (r:bool {r ==> (forall lit . L.mem lit clause ==> variables_up_to_literal lit n)})  
     // = match clause with
     //     | [] -> true
     //     | hd::tl -> if variables_up_to_literal hd n then variables_up_to_clause tl n
@@ -62,8 +72,8 @@ let variables_up_to_clause (clause : list int {valid_clause clause})
 
 
 let variables_up_to_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
-                                (n:nat)
-    // : Tot bool (decreases rf)
+                                    (n:nat)
+    // : Tot (r:bool {r ==> (forall clause . L.mem clause rf ==> variables_up_to_clause clause n)})
     // = match rf with
     //     | [] -> true
     //     | hd::tl -> if variables_up_to_clause hd n then variables_up_to_cnf_formula tl n
@@ -179,8 +189,8 @@ let rec max_var_clause (clause : list int)
     = match clause with
         | [] -> 0
         | hd::tl ->
-        let max_recursive = max_var_clause tl in
-        FStar.Math.Lib.max (max_var_literal hd) max_recursive
+            let max_recursive = max_var_clause tl in
+            FStar.Math.Lib.max (max_var_literal hd) max_recursive
 
 
 let rec max_var_cnf_formula (rf : list (list int))
@@ -189,9 +199,11 @@ let rec max_var_cnf_formula (rf : list (list int))
     = match rf with
         | [] -> assert (variables_up_to_cnf_formula rf 0); 0
         | hd::tl -> 
-        let result = FStar.Math.Lib.max (max_var_clause hd) (max_var_cnf_formula tl) in
-        assert (variables_up_to_clause hd result /\ (forall clause . L.mem clause tl ==> variables_up_to_clause clause result) /\ variables_up_to_cnf_formula rf result);
-        result
+            let result = FStar.Math.Lib.max (max_var_clause hd) (max_var_cnf_formula tl) in
+            assert (variables_up_to_clause hd result);
+            assert (forall clause . L.mem clause tl ==> variables_up_to_clause clause result);
+            assert (variables_up_to_cnf_formula rf result);
+            result
 
 
 let variables_up_to_max_var_literal (lit:int) (n:nat)
@@ -229,14 +241,24 @@ let truth_value_literal (lit:int {valid_literal lit})
       else L.index tau (lit_to_var lit)
 
 
-let truth_value_clause (clause : list int {valid_clause clause})
-                       (tau : list bool {variables_up_to_clause clause (L.length tau)})
-    = exists lit . L.mem lit clause && truth_value_literal lit tau
+let rec truth_value_clause (clause : list int {valid_clause clause})
+                           (tau : list bool {variables_up_to_clause clause (L.length tau)})
+    : Tot (r:bool {r ==> (exists lit . L.mem lit clause && truth_value_literal lit tau)})
+    = match clause with
+        | [] -> false
+        | hd::tl -> if truth_value_literal hd tau then true
+                    else truth_value_clause tl tau
+    // = exists lit . L.mem lit clause && truth_value_literal lit tau
 
 
-let truth_value_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
-                            (tau : list bool {variables_up_to_cnf_formula rf (L.length tau)})
-    = forall clause . L.mem clause rf ==> truth_value_clause clause tau
+let rec truth_value_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
+                                (tau : list bool {variables_up_to_cnf_formula rf (L.length tau)})
+    : Tot (r:bool {r ==> (forall clause . L.mem clause rf ==> truth_value_clause clause tau)})
+    = match rf with
+        | [] -> true
+        | hd::tl -> if truth_value_clause hd tau then truth_value_cnf_formula tl tau
+                    else false
+    // = forall clause . L.mem clause rf ==> truth_value_clause clause tau
 
 
 // let agree (tau1 : list bool) (tau2 : list bool) (start_interval:nat) 
@@ -267,6 +289,19 @@ let negate_literal (v:int) (tau : list bool)
 //     = ()
 
 
+let rec assignment_relevant_clause (clause : list int) (tau : list bool) (tau' : list bool) (n:nat)
+    : Lemma (requires valid_clause clause /\ variables_up_to_clause clause n /\
+                      L.length tau >= n /\ L.length tau' >= n /\
+                      interval_of_list tau 0 n = interval_of_list tau' 0 n)
+            (ensures truth_value_clause clause tau = truth_value_clause clause tau')
+    = match clause with
+        | [] -> ()
+        | hd::tl -> 
+            assert (0 <= lit_to_var hd && lit_to_var hd < n);
+            assert (truth_value_literal hd tau = truth_value_literal hd tau');
+            assignment_relevant_clause tl tau tau' n
+
+
 let rec assignment_relevant_cnf_formula (rf : list (list int)) (tau : list bool) (tau' : list bool) (n:nat)
     : Lemma (requires valid_cnf_formula rf /\ variables_up_to_cnf_formula rf n /\
                       L.length tau >= n /\ L.length tau' >= n /\
@@ -275,8 +310,7 @@ let rec assignment_relevant_cnf_formula (rf : list (list int)) (tau : list bool)
     = match rf with
         | [] -> ()
         | hd::tl -> 
-            assert (forall lit . L.mem lit hd ==> truth_value_literal lit tau = truth_value_literal lit tau');
-            assert (truth_value_clause hd tau == truth_value_clause hd tau');
+            assignment_relevant_clause hd tau tau' n;
             assignment_relevant_cnf_formula tl tau tau' n
 
 
@@ -303,12 +337,16 @@ let transfer_truth_value_clause (clause : list int) (tau : list bool) (tau' : li
                       interval_of_list tau 0 n = interval_of_list tau' 0 n /\
                       interval_of_list tau start_interval end_interval = interval_of_list tau' start_interval end_interval)
             (ensures truth_value_clause clause tau == truth_value_clause clause tau')
-    = assert (forall lit . L.mem lit clause ==> (((0 <= lit_to_var lit && lit_to_var lit < n) ||
-                                                (start_interval <= lit_to_var lit && lit_to_var lit < end_interval)) &&
-                                               L.index tau (lit_to_var lit) = L.index tau' (lit_to_var lit)))
+    = match clause with
+        | [] -> ()
+        | hd::tl -> 
+             assert (forall i . 0 <= i && i < n ==> L.index tau i = L.index tau' i);
+             assert (forall i . start_interval <= i && i < end_interval ==> L.index tau i = L.index tau' i);
+             assert ((0 <= lit_to_var hd && lit_to_var hd < n) || (start_interval <= lit_to_var hd && lit_to_var hd < end_interval));
+             assert (L.index tau (lit_to_var hd) = L.index tau' (lit_to_var hd))
 
 
-let transfer_truth_value (rf : list (list int)) (tau : list bool) (tau' : list bool)
+let rec transfer_truth_value (rf : list (list int)) (tau : list bool) (tau' : list bool)
                          (n:nat) (start_interval:nat) (end_interval:nat)
     : Lemma (requires valid_cnf_formula rf /\
                       n <= start_interval /\ start_interval <= end_interval /\
@@ -317,11 +355,90 @@ let transfer_truth_value (rf : list (list int)) (tau : list bool) (tau' : list b
                       interval_of_list tau 0 n = interval_of_list tau' 0 n /\
                       interval_of_list tau start_interval end_interval = interval_of_list tau' start_interval end_interval)
             (ensures truth_value_cnf_formula rf tau == truth_value_cnf_formula rf tau')
-    = let aux (clause : list int) 
-          : Lemma (requires L.mem clause rf)
-                  (ensures valid_clause clause /\
-                           variables_up_to_clause clause end_interval /\
-                           truth_value_clause clause tau == truth_value_clause clause tau')
-          = transfer_truth_value_clause clause tau tau' n start_interval end_interval
-      in
-      forall_intro (move_requires aux)
+    = match rf with
+        | [] -> ()
+        | hd::tl -> 
+            transfer_truth_value_clause hd tau tau' n start_interval end_interval;
+            transfer_truth_value tl tau tau' n start_interval end_interval
+
+
+let rec append_valid_cnf_formulas (rf1 : list (list int)) (rf2 : list (list int))
+    : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2)
+            (ensures valid_cnf_formula (rf1 @ rf2))
+    = if L.length rf1 = 0 then ()
+      else append_valid_cnf_formulas (L.tl rf1) rf2
+
+
+let rec append_variables_in_interval (rf1 : list (list int)) (rf2 : list (list int))
+                                     (n:nat) (start_interval:nat) (end_interval:nat)
+    : Lemma (requires n <= start_interval /\ start_interval <= end_interval /\
+                      valid_cnf_formula rf1 /\ valid_cnf_formula rf2 /\
+                      variables_in_interval rf1 n start_interval end_interval /\
+                      variables_in_interval rf2 n start_interval end_interval)
+            (ensures valid_cnf_formula (rf1 @ rf2) /\ variables_in_interval (rf1 @ rf2) n start_interval end_interval)
+    = append_valid_cnf_formulas rf1 rf2;
+      if rf1 = [] then ()
+      else 
+      (
+          append_valid_cnf_formulas (L.tl rf1) rf2;
+          append_variables_in_interval (L.tl rf1) rf2 n start_interval end_interval
+      )
+
+
+let rec append_cnf_formulas_variables_up_to (rf1 : list (list int)) (rf2 : list (list int)) (tau : list bool)
+    : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2 /\
+                      variables_up_to_cnf_formula rf1 (L.length tau) /\ 
+                      variables_up_to_cnf_formula rf2 (L.length tau))
+            (ensures valid_cnf_formula (rf1 @ rf2) /\
+                     variables_up_to_cnf_formula (rf1 @ rf2) (L.length tau))
+    = append_valid_cnf_formulas rf1 rf2;
+      if rf1 = [] then ()
+      else
+      (
+          append_valid_cnf_formulas (L.tl rf1) rf2;
+          append_cnf_formulas_variables_up_to (L.tl rf1) rf2 tau
+      )
+
+
+let rec append_cnf_formulas_variables_up_to_max_var (rf1 : list (list int)) (rf2 : list (list int)) (n:nat)
+    : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2 /\
+                      n >= max_var_cnf_formula rf1 /\ n >= max_var_cnf_formula rf2)
+            (ensures valid_cnf_formula (rf1 @ rf2) /\
+                     n >= max_var_cnf_formula (rf1 @ rf2))
+    = append_valid_cnf_formulas rf1 rf2;
+      if rf1 = [] then ()
+      else
+      (
+          append_valid_cnf_formulas (L.tl rf1) rf2;
+          append_cnf_formulas_variables_up_to_max_var (L.tl rf1) rf2 n
+      )
+
+
+let rec append_true_cnf_formulas (rf1 : list (list int)) (rf2 : list (list int)) (tau : list bool)
+    : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2 /\
+                      variables_up_to_cnf_formula rf1 (L.length tau) /\ variables_up_to_cnf_formula rf2 (L.length tau) /\
+                      truth_value_cnf_formula rf1 tau /\ truth_value_cnf_formula rf2 tau)
+            (ensures valid_cnf_formula (rf1 @ rf2) /\
+                     variables_up_to_cnf_formula (rf1 @ rf2) (L.length tau) /\
+                     truth_value_cnf_formula (rf1 @ rf2) tau)
+    = append_valid_cnf_formulas rf1 rf2;
+      append_cnf_formulas_variables_up_to rf1 rf2 tau;
+      if rf1 = [] then ()
+      else
+      (
+          append_valid_cnf_formulas (L.tl rf1) rf2;
+          append_cnf_formulas_variables_up_to (L.tl rf1) rf2 tau;
+          append_true_cnf_formulas (L.tl rf1) rf2 tau
+      )
+
+
+let rec true_parts_of_cnf_formula (rf : list (list int)) (last : list (list int)) (tau : list bool)
+    : Lemma (requires valid_cnf_formula rf /\ valid_cnf_formula last /\ valid_cnf_formula (rf @ last) /\
+                      variables_up_to_cnf_formula rf (L.length tau) /\
+                      variables_up_to_cnf_formula last (L.length tau) /\
+                      variables_up_to_cnf_formula (rf @ last) (L.length tau) /\
+                      truth_value_cnf_formula (rf @ last) tau)
+            (ensures truth_value_cnf_formula rf tau &&
+                     truth_value_cnf_formula last tau)
+    = if rf = [] then ()
+      else true_parts_of_cnf_formula (L.tl rf) last tau

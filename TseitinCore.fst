@@ -62,7 +62,7 @@ let not_clauses (v1:int {valid_variable v1})
 let or_clauses (v1:int {valid_variable v1}) 
                (v2:int {valid_variable v2}) 
                (v:int {valid_variable v}) 
-    : r : list (list int) {valid_cnf_formula r}
+    : r : list (list int) {valid_cnf_formula r /\ L.length r = 3}
     = [[neg_var_to_lit v; pos_var_to_lit v1; pos_var_to_lit v2];
        [neg_var_to_lit v1; pos_var_to_lit v];
        [neg_var_to_lit v2; pos_var_to_lit v]]
@@ -71,7 +71,7 @@ let or_clauses (v1:int {valid_variable v1})
 let and_clauses (v1:int {valid_variable v1}) 
                 (v2:int {valid_variable v2}) 
                 (v:int {valid_variable v}) 
-    : r : list (list int) {valid_cnf_formula r}
+    : r : list (list int) {valid_cnf_formula r /\ L.length r = 3}
     = [[neg_var_to_lit v; pos_var_to_lit v1];
        [neg_var_to_lit v; pos_var_to_lit v2];
        [neg_var_to_lit v1; neg_var_to_lit v2; pos_var_to_lit v]]
@@ -80,7 +80,7 @@ let and_clauses (v1:int {valid_variable v1})
 let implies_clauses (v1:int {valid_variable v1}) 
                     (v2:int {valid_variable v2}) 
                     (v:int {valid_variable v}) 
-    : r : list (list int) {valid_cnf_formula r}
+    : r : list (list int) {valid_cnf_formula r /\ L.length r = 3}
     = [[neg_var_to_lit v; neg_var_to_lit v1; pos_var_to_lit v2];
        [pos_var_to_lit v1; pos_var_to_lit v];
        [neg_var_to_lit v2; pos_var_to_lit v]]
@@ -89,7 +89,11 @@ let implies_clauses (v1:int {valid_variable v1})
 let dimplies_clauses (v1:int {valid_variable v1}) 
                      (v2:int {valid_variable v2}) 
                      (v:int {valid_variable v}) 
-    : r : list (list int) {valid_cnf_formula r}
+    : r : list (list int) {valid_cnf_formula r /\ L.length r = 4 ///\ r = [L.index r 0; L.index r 1; L.index r 2; L.index r 3] /\ L.index r 0 = [neg_var_to_lit v; neg_var_to_lit v1; pos_var_to_lit v2] /\
+    //L.index r 1 = [neg_var_to_lit v1; neg_var_to_lit v2; pos_var_to_lit v] /\
+    //L.index r 2 = [pos_var_to_lit v1; pos_var_to_lit v2; pos_var_to_lit v] /\
+    //L.index r 3 = [neg_var_to_lit v; neg_var_to_lit v2; pos_var_to_lit v1]
+    }
     = [[neg_var_to_lit v; neg_var_to_lit v1; pos_var_to_lit v2];
        [neg_var_to_lit v1; neg_var_to_lit v2; pos_var_to_lit v];
        [pos_var_to_lit v1; pos_var_to_lit v2; pos_var_to_lit v];
@@ -204,6 +208,13 @@ let lemma_not_clauses (v1:int) (v:int) (tau : list bool)
                 truth_value_literal (L.index (L.index rf 1) 1) tau)
 
 
+let or_clauses_up_to (v1:int) (v2:int) (v:int) (n:nat)
+    : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
+                      n > v1 && n > v2 && n > v)
+            (ensures variables_up_to_cnf_formula (or_clauses v1 v2 v) n)
+    = ()
+
+
 let lemma_or_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
     : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
                       L.length tau > v1 && L.length tau > v2 && L.length tau > v)
@@ -213,9 +224,11 @@ let lemma_or_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                   truth_value_literal (pos_var_to_lit v2) tau) <==>
                   truth_value_literal (pos_var_to_lit v) tau))
     = let rf = or_clauses v1 v2 v in
+      or_clauses_up_to v1 v2 v (L.length tau);
+      assert (L.mem (L.index rf 2) rf);
       assert (truth_value_cnf_formula rf tau <==>
-                truth_value_clause (L.index rf 0) tau /\
-                truth_value_clause (L.index rf 1) tau /\
+                truth_value_clause (L.index rf 0) tau &&
+                truth_value_clause (L.index rf 1) tau &&
                 truth_value_clause (L.index rf 2) tau);
       assert (truth_value_clause (L.index rf 0) tau <==>
                 truth_value_literal (L.index (L.index rf 0) 0) tau ||
@@ -227,7 +240,14 @@ let lemma_or_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
       assert (truth_value_clause (L.index rf 2) tau <==>
                 truth_value_literal (L.index (L.index rf 2) 0) tau ||
                 truth_value_literal (L.index (L.index rf 2) 1) tau)
-                  
+
+       
+let and_clauses_up_tp(v1:int) (v2:int) (v:int) (n:nat)
+    : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
+                      n > v1 && n > v2 && n > v)
+            (ensures variables_up_to_cnf_formula (and_clauses v1 v2 v) n)
+    = ()
+
 
 let lemma_and_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
     : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
@@ -238,9 +258,14 @@ let lemma_and_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                   truth_value_literal (pos_var_to_lit v2) tau) <==>
                   truth_value_literal (pos_var_to_lit v) tau))
     = let rf = and_clauses v1 v2 v in
+      and_clauses_up_tp v1 v2 v (L.length tau);
+      assert (L.length rf = 3);
+      assert (L.mem (L.index rf 0) rf);
+      assert (L.mem (L.index rf 1) rf);
+      assert (L.mem (L.index rf 2) rf);
       assert (truth_value_cnf_formula rf tau <==>
-                truth_value_clause (L.index rf 0) tau /\
-                truth_value_clause (L.index rf 1) tau /\
+                truth_value_clause (L.index rf 0) tau &&
+                truth_value_clause (L.index rf 1) tau &&
                 truth_value_clause (L.index rf 2) tau);
       assert (truth_value_clause (L.index rf 0) tau <==>
                 truth_value_literal (L.index (L.index rf 0) 0) tau ||
@@ -252,8 +277,15 @@ let lemma_and_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                 truth_value_literal (L.index (L.index rf 2) 0) tau ||
                 truth_value_literal (L.index (L.index rf 2) 1) tau ||
                 truth_value_literal (L.index (L.index rf 2) 2) tau)
-        
 
+       
+let implies_clauses_up_to (v1:int) (v2:int) (v:int) (n:nat)
+    : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
+                      n > v1 && n > v2 && n > v)
+            (ensures variables_up_to_cnf_formula (implies_clauses v1 v2 v) n)
+    = ()
+
+   
 let lemma_implies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
     : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
                       L.length tau > v1 && L.length tau > v2 && L.length tau > v)
@@ -263,9 +295,11 @@ let lemma_implies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                   truth_value_literal (pos_var_to_lit v2) tau) <==>
                   truth_value_literal (pos_var_to_lit v) tau))
     = let rf = implies_clauses v1 v2 v in
+      implies_clauses_up_to v1 v2 v (L.length tau);
+      assert (L.mem (L.index rf 2) rf);
       assert (truth_value_cnf_formula rf tau <==>
-                truth_value_clause (L.index rf 0) tau /\
-                truth_value_clause (L.index rf 1) tau /\
+                truth_value_clause (L.index rf 0) tau &&
+                truth_value_clause (L.index rf 1) tau &&
                 truth_value_clause (L.index rf 2) tau);
       assert (truth_value_clause (L.index rf 0) tau <==>
                 truth_value_literal (L.index (L.index rf 0) 0) tau ||
@@ -279,6 +313,15 @@ let lemma_implies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                 truth_value_literal (L.index (L.index rf 2) 1) tau)
 
 
+let dimplies_clauses_up_to (v1:int) (v2:int) (v:int) (n:nat)
+    : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
+                      n > v1 && n > v2 && n > v)
+            (ensures variables_up_to_cnf_formula (dimplies_clauses v1 v2 v) n /\
+                     L.mem (L.index (dimplies_clauses v1 v2 v) 2) (dimplies_clauses v1 v2 v) /\
+                     L.mem (L.index (dimplies_clauses v1 v2 v) 3) (dimplies_clauses v1 v2 v))
+    = ()
+
+
 let lemma_dimplies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
     : Lemma (requires valid_variable v1 && valid_variable v2 && valid_variable v &&
                       L.length tau > v1 && L.length tau > v2 && L.length tau > v)
@@ -288,12 +331,14 @@ let lemma_dimplies_clauses (v1:int) (v2:int) (v:int) (tau : list bool)
                   truth_value_literal (pos_var_to_lit v2) tau) <==>
                   truth_value_literal (pos_var_to_lit v) tau))
     = let rf = dimplies_clauses v1 v2 v in
-      // assert (variables_up_to_cnf_formula rf (L.length tau));
+      dimplies_clauses_up_to v1 v2 v (L.length tau);
+      assert (forall clause . L.mem clause rf ==> (variables_up_to_clause clause (L.length tau)));
+      // assert (rf = [L.index rf 0; L.index rf 1; L.index rf 2; L.index rf 3]);
       assert (truth_value_cnf_formula rf tau <==>
-                truth_value_clause (L.index rf 0) tau /\
-                truth_value_clause (L.index rf 1) tau /\
-                truth_value_clause (L.index rf 2) tau /\
-                truth_value_clause (L.index rf 3) tau );
+                truth_value_clause (L.index rf 0) tau &&
+                truth_value_clause (L.index rf 1) tau &&
+                truth_value_clause (L.index rf 2) tau &&
+                truth_value_clause (L.index rf 3) tau);
       assert (truth_value_clause (L.index rf 0) tau <==>
                 truth_value_literal (L.index (L.index rf 0) 0) tau ||
                 truth_value_literal (L.index (L.index rf 0) 1) tau ||

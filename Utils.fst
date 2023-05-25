@@ -3,6 +3,7 @@ module Utils
 open FStar.List.Tot
 module L = FStar.List.Tot.Base
 open FStar.Mul
+open FStar.Ghost
 
 
 
@@ -63,7 +64,6 @@ let sumpow_upper (a:int) (b:int)
       multpow_powsum a a;
       assert (pow2 a * pow2 a <= pow2 (a + a));
       assert (4 <= pow2 a);
-      assert (4 * pow2 a <= pow2 a * pow2 a);
       assert (pow2 a + pow2 a + pow2 a + pow2 a <= 4 * pow2 a);
       pow_monotone b a;
       assert (pow2 b <= pow2 a);
@@ -101,3 +101,46 @@ let rec same_values_append (l1 : list bool) (l2 : list bool) (l3 : list bool)
           if L.length l2 = 0 then ()
           else same_values_append [] (L.tl l2) l3
       else same_values_append (L.tl l1) l2 l3
+
+
+let rec is_prefix (l1 : list bool) (l2 : list bool)
+    : Tot bool
+    = if L.length l2 < L.length l1 then false
+      else match l1 with
+        | [] -> true
+        | hd::tl -> if hd = (L.hd l2) then is_prefix tl (L.tl l2)
+                    else false
+
+
+// let rec without_last (#a:Type) (l : list a {L.length l >= 1})
+//     : r : list a {L.length r = L.length l - 1}
+//     = match l with
+//         | [el] -> []
+//         | hd::tl -> hd::without_last tl
+
+
+let rec is_prefix_then_is_interval (l1 : list bool) (l2 : list bool)
+    : Lemma (requires is_prefix l1 l2)
+            (ensures interval_of_list l2 0 (L.length l1) = l1)
+    = match l1 with
+        | [] -> ()
+        | hd::tl ->
+            assert (hd = L.hd l1);
+            is_prefix_then_is_interval tl (L.tl l2)
+
+
+let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
+  : Tot (w : Ghost.erased a {p w})
+  = admit()
+
+
+// let indefinite_description_ghost_bool (a:Type) (p : (a -> bool) {exists x. p x})
+//   : GTot (x : a {p x})
+//   = let w = indefinite_description_tot_bool a p in
+//     let x = Ghost.reveal w in
+//     x
+
+
+let extract_value (p : ((list bool) -> bool) {exists x . p x}) : erased (list bool) =
+    let value : (list bool) = indefinite_description_tot_bool (list bool) p in
+    value 

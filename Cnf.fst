@@ -8,8 +8,10 @@ open FormulaT
 open Utils
 
 
-#set-options "--lax"
-let rec weight_of_ands (f:formula_t) : Tot (r:nat{r >= 2}) (decreases f)
+
+let rec weight_of_ands (f:formula_t) 
+    : Tot (r:nat {r >= 2}) 
+          (decreases f)
     = match f with
         | Var value -> 2
         | Not f1 -> pow2 (weight_of_ands f1)
@@ -30,7 +32,8 @@ let rec count_dimplies (f:formula_t)
         | DImplies f1 f2 -> 1 + pow2 (count_dimplies f1 + count_dimplies f2)
 
 
-let rec count_implies (f:formula_t) : Tot nat (decreases f)
+let rec count_implies (f:formula_t) 
+    : Tot nat (decreases f)
     = match f with
         | Var value -> 0
         | Not f1 -> count_implies f1
@@ -40,7 +43,8 @@ let rec count_implies (f:formula_t) : Tot nat (decreases f)
         | DImplies f1 f2 -> count_implies f1 + count_implies f2
     
 
-let rec count_and_pairs (f:formula_t) (ands_above_left:nat) : Tot nat (decreases f)
+let rec count_and_pairs (f:formula_t) (ands_above_left:nat)
+    : Tot nat (decreases f)
     = match f with
         | Var value -> 0
         | Not f1 -> count_and_pairs f1 ands_above_left
@@ -50,7 +54,8 @@ let rec count_and_pairs (f:formula_t) (ands_above_left:nat) : Tot nat (decreases
         | DImplies f1 f2 -> count_and_pairs f1 ands_above_left + count_and_pairs f2 ands_above_left
 
 
-let rec count_or_pairs (f:formula_t) (ors_above_left:nat) : Tot nat (decreases f)
+let rec count_or_pairs (f:formula_t) (ors_above_left:nat)
+    : Tot nat (decreases f)
     = match f with
         | Var value -> 0
         | Not f1 -> count_or_pairs f1 ors_above_left
@@ -163,6 +168,7 @@ let apply_rule_5 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
       rule_5_prop f1 f21 f22 ors_above_left;
       assert (count_or_pairs r ors_above_left < count_or_pairs f ors_above_left);
       r
+
 
 let rec rule_6_prop_aux (f:formula_t) (ands_above_left:nat)
     : Lemma (ensures count_and_pairs f ands_above_left <= count_and_pairs f (ands_above_left + 1))
@@ -303,19 +309,6 @@ let apply_at_top (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
       | Implies f1 f2 -> apply_rule_2 f ors_above_left ands_above_left
       | DImplies f1 f2 -> apply_rule_1 f ors_above_left ands_above_left
 
-#reset-options
-
-let rule_3_or (f1:formula_t) (f2:formula_t) (f3:formula_t)
-    : Lemma (requires weight_of_ands f3 < weight_of_ands f2 && 
-                      weight_of_ands f1 >= 2 && 
-                      weight_of_ands f2 >= 2 &&
-                      weight_of_ands f3 >= 2)
-            (ensures weight_of_ands (Or f1 f3) < weight_of_ands (Or f1 f2))
-    = assert (weight_of_ands (Or f1 f3) = weight_of_ands f1 * weight_of_ands f3);
-      assert (weight_of_ands (Or f1 f2) = weight_of_ands f1 * weight_of_ands f2);
-      less_than_mult_right (weight_of_ands f1) (weight_of_ands f2) (weight_of_ands f3);
-      assert (weight_of_ands f1 * weight_of_ands f3 < weight_of_ands f1 * weight_of_ands f2)
-
 
 let rule_3_under_not (f1:formula_t) (f2:formula_t)
     : Lemma (requires weight_of_ands f1 <= weight_of_ands f2)
@@ -333,6 +326,19 @@ let rule_3_under_not_2 (f1:formula_t) (f2:formula_t)
       pow_monotone_strict (weight_of_ands f1) (weight_of_ands f2)
 
 
+let rule_3_or (f1:formula_t) (f2:formula_t) (f3:formula_t)
+    : Lemma (requires weight_of_ands f3 < weight_of_ands f2 && 
+                      weight_of_ands f1 >= 2 && 
+                      weight_of_ands f2 >= 2 &&
+                      weight_of_ands f3 >= 2)
+            (ensures weight_of_ands (Or f1 f3) < weight_of_ands (Or f1 f2))
+    = assert (weight_of_ands (Or f1 f3) = weight_of_ands f1 * weight_of_ands f3);
+      assert (weight_of_ands (Or f1 f2) = weight_of_ands f1 * weight_of_ands f2);
+      less_than_mult_right (weight_of_ands f1) (weight_of_ands f2) (weight_of_ands f3);
+      assert (weight_of_ands f1 * weight_of_ands f3 < weight_of_ands f1 * weight_of_ands f2)
+
+
+#set-options "--split_queries always"
 let rec apply_rule (f:formula_t) (ors_above_left : erased nat) (ands_above_left : erased nat)
     : Pure formula_t (requires valid_formula_t f)
                      (ensures fun r -> (valid_formula_t r /\
@@ -357,23 +363,41 @@ let rec apply_rule (f:formula_t) (ors_above_left : erased nat) (ands_above_left 
               assert (equivalent f2 f2_step);
               assert (equivalent (Or f1 f2) (Or f1 f2_step));
               if weight_of_ands f2_step < weight_of_ands f2 then rule_3_or f1 f2 f2_step;
-              Or f1 f2_step
+              let r = Or f1 f2_step in
+              assert (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left));
+              r
             )
             else 
             (
               assert (equivalent f1 f1_step);
               assert (equivalent (Or f1 f2) (Or f1_step f2));
-              if weight_of_ands f1_step < weight_of_ands f1 then rule_3_or f2 f1 f1_step;
-              Or f1_step f2
+              if weight_of_ands f1_step < weight_of_ands f1 then 
+              (
+                rule_3_or f2 f1 f1_step;
+                assert (weight_of_ands (Or f2 f1_step) = weight_of_ands (Or f1_step f2));
+                assert (weight_of_ands f1 * weight_of_ands f2 = weight_of_ands f2 * weight_of_ands f1);
+                assert (weight_of_ands (Or f2 f1) = weight_of_ands (Or f1 f2))
+              );
+              let r = Or f1_step f2 in
+              assert (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left));
+              r
             )
         | And f1 f2 ->
             let f1_step = apply_rule f1 ors_above_left ands_above_left in
             if f1 = f1_step then
             (
               let f2_step = apply_rule f2 ors_above_left (ands_above_left + 1) in
-              And f1 f2_step
+              let r = And f1 f2_step in
+              assert (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left));
+              r
             )
-            else And f1_step f2
+            else
+            (
+              let r = And f1_step f2 in
+              assert (r = f || smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left));
+              r
+            )
+#reset-options
 
 
 let rec convert_to_cnf (f:formula_t)

@@ -64,6 +64,7 @@ let sumpow_upper (a:int) (b:int)
       multpow_powsum a a;
       assert (pow2 a * pow2 a <= pow2 (a + a));
       assert (4 <= pow2 a);
+      assert (4 * pow2 a <= pow2 a * pow2 a);
       assert (pow2 a + pow2 a + pow2 a + pow2 a <= 4 * pow2 a);
       pow_monotone b a;
       assert (pow2 b <= pow2 a);
@@ -95,8 +96,7 @@ let rec interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interv
 
 
 let rec same_values_append (l1 : list bool) (l2 : list bool) (l3 : list bool)
-    : Lemma (requires True)
-            (ensures interval_of_list (l1 @ l2 @ l3) (L.length l1) (L.length l1 + L.length l2) = l2)
+    : Lemma (ensures interval_of_list (l1 @ l2 @ l3) (L.length l1) (L.length l1 + L.length l2) = l2)
     = if L.length l1 = 0 then
           if L.length l2 = 0 then ()
           else same_values_append [] (L.tl l2) l3
@@ -130,7 +130,7 @@ let rec is_prefix_then_is_interval (l1 : list bool) (l2 : list bool)
 
 
 let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
-  : Tot (w : Ghost.erased a {p w})
+  : Tot (w : a {p w})
   = admit()
 
 
@@ -141,6 +141,6 @@ let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
 //     x
 
 
-let extract_value (p : ((list bool) -> bool) {exists x . p x}) : erased (list bool) =
+let extract_value (p : ((list bool) -> bool) {exists x . p x}) : (list bool) =
     let value : (list bool) = indefinite_description_tot_bool (list bool) p in
     value 

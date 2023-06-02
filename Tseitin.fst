@@ -115,23 +115,6 @@ let satisfied_cnf_formula (rf : list (list int)) (tau : list bool)
       assignment_relevant_cnf_formula rf tau tau' n
 
 
-// let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
-//   : Tot (w : Ghost.erased a {p w})
-//   = admit()
-
-
-// // let indefinite_description_ghost_bool (a:Type) (p : (a -> bool) {exists x. p x})
-// //   : GTot (x : a {p x})
-// //   = let w = indefinite_description_tot_bool a p in
-// //     let x = Ghost.reveal w in
-// //     x
-
-
-// let extract_value (p : ((list bool) -> bool) {exists x . p x}) : erased (list bool) =
-//     let value : (list bool) = indefinite_description_tot_bool (list bool) p in
-//     value 
-
-
 let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
     : Lemma (requires valid f rf v n n end_interval /\
                       tseitin_same_value f rf v n n end_interval /\
@@ -157,6 +140,7 @@ let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_
       same_values_append [] tau_short (n_falses (n - max_var f));
       assignment_relevant f (max_var f) tau_short tau;
       assert (truth_value f tau);
+      assert (L.length tau = n);
       assert (can_extend tau f rf v n n end_interval);
 
       let conditions (tau' : list bool) =
@@ -172,11 +156,14 @@ let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_
       assert (pos_var_to_lit v = v + 1);
       assert (lit_to_var (pos_var_to_lit v) = v);
       append_variables_in_interval rf [[pos_var_to_lit v]] n n end_interval;
-      assert (truth_value_literal (pos_var_to_lit v) tau');
       assert (valid_literal (pos_var_to_lit v));
       assert (valid_clause [pos_var_to_lit v]);
       assert (valid_cnf_formula [[pos_var_to_lit v]]);
+      assert (truth_value_literal (pos_var_to_lit v) tau');
+      assert (truth_value_clause [pos_var_to_lit v] tau');
       assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau');
+    //   assert (L.length tau' = end_interval);
+      assert (variables_up_to_cnf_formula rf (L.length tau'));
       append_true_cnf_formulas rf [[pos_var_to_lit v]] tau';
       satisfied_cnf_formula (rf @ [[pos_var_to_lit v]]) tau'
 
@@ -202,6 +189,7 @@ let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:
       variables_up_to_max_var_cnf_formula rf end_interval;
       variables_up_to_max_var_cnf_formula [[pos_var_to_lit v]] end_interval;
       append_cnf_formulas_variables_up_to_max_var rf [[pos_var_to_lit v]] end_interval;
+      assert (variables_up_to_cnf_formula (rf @ [[pos_var_to_lit v]]) end_interval);
       variables_up_to_max_var_cnf_formula (rf @ [[pos_var_to_lit v]]) end_interval;
 
       assert (end_interval >= L.length tau_short);

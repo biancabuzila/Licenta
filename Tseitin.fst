@@ -5,10 +5,12 @@ module L = FStar.List.Tot.Base
 module LP = FStar.List.Tot.Properties
 open FStar.Classical
 open FStar.Ghost
+open Utils
 open FormulaT
 open CnfFormula
-open Utils
 open TseitinCore
+// open TseitinProofs
+open LemmasForClauses
 
 
 
@@ -37,13 +39,14 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
             let v = value in
             let end_interval = start_interval in
 
-            let aux (tau : list bool) : Lemma (requires L.length tau = n)
-                                              (ensures L.length tau = n /\
-                                                       can_extend tau f rf v n start_interval end_interval)
+            let aux (tau : list bool) 
+                : Lemma (requires L.length tau = n)
+                        (ensures L.length tau = n /\
+                                 can_extend tau f rf v n start_interval end_interval)
                 = let tau' = tau @ (n_falses (end_interval - n)) in
                   LP.append_length tau (n_falses (end_interval - n));
-                  assert (L.length tau' = end_interval)
-                //   assert (can_extend tau f rf v n start_interval end_interval)
+                  assert (L.length tau' = end_interval);
+                  assert (can_extend tau f rf v n start_interval end_interval)
             in
             forall_intro (move_requires aux);
             assert (tseitin_can_extend f rf v n start_interval end_interval);
@@ -52,41 +55,42 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
         | Not f1 ->
             let rf1, v1, v = tseitin_cnf f1 n start_interval in
             let end_interval = v + 1 in
-            let rf = L.append rf1 (not_clauses v1 v) in
-            // proveCanExtendNot(f1, rf1, v1, n, start, v, end, rf);
-            //proveSameValueNot(f1, rf1, v1, n, start, v, end, rf);
+            let rf = rf1 @ (not_clauses v1 v) in
+            prove_can_extend_not f1 rf1 v1 n start_interval v end_interval rf;
+            prove_same_value_not f1 rf1 v1 n start_interval v end_interval rf;
             rf, v, end_interval
         | Or f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
-            let rf = L.append (L.append rf1 rf2) (or_clauses v1 v2 v) in
-            //proveCanExtendOr(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
-            //proveSameValueOr(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
+            let rf = rf1 @ rf2 @ (or_clauses v1 v2 v) in
+            assert (valid f2 rf2 v2 n mid v);
+            prove_can_extend_or f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_or f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | And f1 f2 -> 
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
-            let rf = L.append (L.append rf1 rf2) (and_clauses v1 v2 v) in
-            //proveCanExtendAnd(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
-            //proveSameValueAnd(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
+            let rf = rf1 @ rf2 @ (and_clauses v1 v2 v) in
+            prove_can_extend_and f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_and f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | Implies f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
-            let rf = L.append (L.append rf1 rf2) (implies_clauses v1 v2 v) in
-            // proveCanExtendImplies(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
-            //proveSameValueImplies(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
+            let rf = rf1 @ rf2 @ (implies_clauses v1 v2 v) in
+            prove_can_extend_implies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_implies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | DImplies f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
-            let rf = L.append (L.append rf1 rf2) (dimplies_clauses v1 v2 v) in 
-            //proveCanExtendDimplies(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
-            //proveSameValueDimplies(f1, rf1, v1, f2, rf2, v2, n, start, mid, v, end, rf);
+            let rf = rf1 @ rf2 @ (dimplies_clauses v1 v2 v) in 
+            prove_can_extend_dimplies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_dimplies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
 
 
@@ -115,6 +119,7 @@ let satisfied_cnf_formula (rf : list (list int)) (tau : list bool)
       assignment_relevant_cnf_formula rf tau tau' n
 
 
+#set-options "--split_queries always"
 let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
     : Lemma (requires valid f rf v n n end_interval /\
                       tseitin_same_value f rf v n n end_interval /\
@@ -136,11 +141,12 @@ let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_
       assert (max_var f <= n);
       let tau = tau_short @ (n_falses (n - max_var f)) in
       LP.append_length tau_short (n_falses (n - max_var f));
+      assert (L.length tau = L.length tau_short + L.length (n_falses ( n - max_var f)));
+      assert (L.length tau = n);
       same_values_append [] tau_short [];
       same_values_append [] tau_short (n_falses (n - max_var f));
       assignment_relevant f (max_var f) tau_short tau;
       assert (truth_value f tau);
-      assert (L.length tau = n);
       assert (can_extend tau f rf v n n end_interval);
 
       let conditions (tau' : list bool) =
@@ -160,12 +166,10 @@ let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_
       assert (valid_clause [pos_var_to_lit v]);
       assert (valid_cnf_formula [[pos_var_to_lit v]]);
       assert (truth_value_literal (pos_var_to_lit v) tau');
-      assert (truth_value_clause [pos_var_to_lit v] tau');
-      assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau');
-    //   assert (L.length tau' = end_interval);
       assert (variables_up_to_cnf_formula rf (L.length tau'));
       append_true_cnf_formulas rf [[pos_var_to_lit v]] tau';
       satisfied_cnf_formula (rf @ [[pos_var_to_lit v]]) tau'
+#reset-options
 
 
 let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_interval:nat)
@@ -174,7 +178,8 @@ let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:
                       tseitin_can_extend f rf v n n end_interval)
             (ensures valid_cnf_formula (rf @ [[pos_var_to_lit v]]) /\
                      satisfiable_cnf_formula (rf @ [[pos_var_to_lit v]]) ==> equisatisfiable f (rf @ [[pos_var_to_lit v]]))
-    = append_valid_cnf_formulas rf [[pos_var_to_lit v]];
+    = assert (valid_cnf_formula [[pos_var_to_lit v]]);
+      append_valid_cnf_formulas rf [[pos_var_to_lit v]];
       LP.append_length rf [[pos_var_to_lit v]];
       
       let conditions (tau_short : list bool) =
@@ -195,10 +200,13 @@ let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:
       assert (end_interval >= L.length tau_short);
       let tau = tau_short @ (n_falses (end_interval - (L.length tau_short))) in
       LP.append_length tau_short (n_falses (end_interval - (L.length tau_short)));
+      assert (L.length tau = end_interval);
       same_values_append [] tau_short [];
       same_values_append [] tau_short (n_falses (end_interval - (L.length tau_short)));
       assignment_relevant_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short tau (L.length tau_short);
 
+      assert (valid_cnf_formula [[pos_var_to_lit v]]);
+      assert (variables_up_to_cnf_formula [[pos_var_to_lit v]] (L.length tau));
       true_parts_of_cnf_formula rf [[pos_var_to_lit v]] tau;
       assert (truth_value_cnf_formula rf tau);
       assert (truth_value_cnf_formula [[pos_var_to_lit v]] tau);
@@ -210,10 +218,6 @@ let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:
       variables_up_to_monotone f n end_interval;
       variables_up_to_max_var f end_interval;
 
-      assert (tau = tau_short @ (n_falses (end_interval - (L.length tau_short))));
-      assert (L.length (n_falses (end_interval - (L.length tau_short))) = end_interval - (L.length tau_short));
-      LP.append_length tau_short (n_falses (end_interval - (L.length tau_short)));
-      assert (L.length tau = (L.length tau_short) + (L.length (n_falses (end_interval - (L.length tau_short)))));
       assert (L.length tau = end_interval);
       assert (variables_up_to f (L.length tau));
       assert (truth_value_literal (pos_var_to_lit v) tau = truth_value f tau);
@@ -239,6 +243,6 @@ let tseitin (f:formula_t)
                              (ensures fun r -> (valid_cnf_formula r /\ equisatisfiable f r))
     = let n = max_var f in
       let rf, v, end_interval = tseitin_cnf f n n in
-      let r = L.append rf [[pos_var_to_lit v]] in
+      let r = rf @ [[pos_var_to_lit v]] in
       tseitin_follows f rf v n end_interval;
       r

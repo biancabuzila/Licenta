@@ -88,7 +88,6 @@ let rec interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interv
     : Pure (list a) (requires start_interval <= end_interval && end_interval <= L.length l)
                     (ensures fun r -> L.length r = end_interval - start_interval /\
                                        (forall (i:nat) . start_interval <= i && i < end_interval ==> L.index l i == L.index r (i - start_interval)))
-//     = fst (L.splitAt (end_interval - start_interval) (snd (L.splitAt start_interval l)))
     = if start_interval = 0 then 
         if end_interval = 0 then []
         else (L.hd l)::interval_of_list (L.tl l) 0 (end_interval - 1)
@@ -103,6 +102,12 @@ let rec same_values_append (l1 : list bool) (l2 : list bool) (l3 : list bool)
       else same_values_append (L.tl l1) l2 l3
 
 
+let rec interval_append_fst (l1 : list bool) (l2 : list bool)
+    : Lemma (ensures interval_of_list (l1 @ l2) 0 (L.length l1) = l1)
+    = if l1 = [] then ()
+      else interval_append_fst (L.tl l1) l2
+
+
 let rec is_prefix (l1 : list bool) (l2 : list bool)
     : Tot bool
     = if L.length l2 < L.length l1 then false
@@ -110,13 +115,6 @@ let rec is_prefix (l1 : list bool) (l2 : list bool)
         | [] -> true
         | hd::tl -> if hd = (L.hd l2) then is_prefix tl (L.tl l2)
                     else false
-
-
-// let rec without_last (#a:Type) (l : list a {L.length l >= 1})
-//     : r : list a {L.length r = L.length l - 1}
-//     = match l with
-//         | [el] -> []
-//         | hd::tl -> hd::without_last tl
 
 
 let rec is_prefix_then_is_interval (l1 : list bool) (l2 : list bool)

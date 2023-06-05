@@ -1,6 +1,5 @@
 module Cnf
 
-open FStar.Math.Lib
 open FStar.Mul
 module L = FStar.List.Tot.Base
 open FStar.Ghost
@@ -166,7 +165,7 @@ let apply_rule_5 (f:formula_t) (ors_above_left : erased nat) (ands_above_left : 
       let Or f21 f22 = f2 in
       let r = Or (Or f1 f21) f22 in
       rule_5_prop f1 f21 f22 ors_above_left;
-      assert (count_or_pairs r ors_above_left < count_or_pairs f ors_above_left);
+      assert (smaller (measure r ors_above_left ands_above_left) (measure f ors_above_left ands_above_left));
       r
 
 

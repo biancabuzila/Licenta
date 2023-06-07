@@ -21,34 +21,11 @@ let lit_to_var (lit:int {valid_literal lit})
       else lit - 1
 
 
-// let rec verify_validity (#a:Type) (f : (subterm:a -> bool)) (term : list a)
-//     : Tot bool
-//     = match term with
-//         | [] -> true
-//         | hd::tl -> if f hd then verify_validity f tl
-//                     else false
-
-
 let valid_clause (clause : list int)
-    // : Tot (r:bool {r ==> (forall lit . L.mem lit clause ==> valid_literal lit)})
-    // = match clause with
-    //     | [] -> true
-    //     | hd::tl -> if valid_literal hd then valid_clause tl
-    //                 else false
-    // : Tot bool
-    // = verify_validity valid_literal clause
     = forall (lit:int {L.mem lit clause}) . valid_literal lit
-    // = forall lit . L.mem lit clause ==> valid_literal lit
 
 
 let valid_cnf_formula (f : list (list int))
-    // : Tot (r:bool {r ==> (forall (clause : list int) . L.mem clause f ==> valid_clause clause)})
-    // = match f with
-    //     | [] -> true
-    //     | hd::tl -> if valid_clause hd then valid_cnf_formula tl
-    //                 else false
-    // : Tot bool
-    // = verify_validity valid_clause f
     = forall (clause : list int) . L.mem clause f ==> valid_clause clause
 
 
@@ -68,7 +45,6 @@ let rec variables_up_to_clause (clause : list int {valid_clause clause}) (n:nat)
         | [] -> true
         | hd::tl -> if variables_up_to_literal hd n then variables_up_to_clause tl n
                     else false
-    // = forall lit . L.mem lit clause ==> variables_up_to_literal lit n
 
 
 let rec variables_up_to_cnf_formula (rf : list (list int) {valid_cnf_formula rf}) (n:nat)
@@ -77,7 +53,6 @@ let rec variables_up_to_cnf_formula (rf : list (list int) {valid_cnf_formula rf}
         | [] -> true
         | hd::tl -> if variables_up_to_clause hd n then variables_up_to_cnf_formula tl n
                     else false
-    // = forall clause . L.mem clause rf ==> variables_up_to_clause clause n
 
 
 let variable_in_interval (v:int {valid_variable v}) 
@@ -146,7 +121,9 @@ let max_var_literal (lit:int {valid_literal lit})
 
 let rec max_var_clause (clause : list int)
     : Pure int (requires valid_clause clause)
-               (ensures fun r -> (r >= 0 /\ (forall lit . L.mem lit clause ==> lit_to_var lit < r) /\ variables_up_to_clause clause r))
+               (ensures fun r -> (r >= 0 /\ 
+                                 (forall lit . L.mem lit clause ==> lit_to_var lit < r) /\
+                                 variables_up_to_clause clause r))
     = match clause with
         | [] -> 0
         | hd::tl ->
@@ -156,7 +133,9 @@ let rec max_var_clause (clause : list int)
 
 let rec max_var_cnf_formula (rf : list (list int))
     : Pure int (requires valid_cnf_formula rf)
-               (ensures fun r -> (r >= 0 /\ (forall clause . L.mem clause rf ==> variables_up_to_clause clause r) /\ variables_up_to_cnf_formula rf r))
+               (ensures fun r -> (r >= 0 /\ 
+                                 (forall clause . L.mem clause rf ==> variables_up_to_clause clause r) /\
+                                 variables_up_to_cnf_formula rf r))
     = match rf with
         | [] -> assert (variables_up_to_cnf_formula rf 0); 0
         | hd::tl -> 
@@ -197,7 +176,7 @@ let rec variables_up_to_max_var_cnf_formula (rf : list (list int)) (n:nat)
 
 let truth_value_literal (lit:int {valid_literal lit})
                         (tau : list bool {variables_up_to_literal lit (L.length tau)})
-    : bool
+    : Tot bool
     = if lit < 0 then not (L.index tau (lit_to_var lit))
       else L.index tau (lit_to_var lit)
 
@@ -218,12 +197,6 @@ let rec truth_value_cnf_formula (rf : list (list int) {valid_cnf_formula rf})
         | [] -> true
         | hd::tl -> if truth_value_clause hd tau then truth_value_cnf_formula tl tau
                     else false
-
-
-// let agree (tau1 : list bool) (tau2 : list bool) (start_interval:nat) 
-//           (end_interval:nat {start_interval <= end_interval && L.length tau1 >= end_interval && L.length tau2 >= end_interval}) 
-//     : bool
-//     = interval_of_list tau1 start_interval end_interval = interval_of_list tau2 start_interval end_interval
 
 
 let negate_literal (v:int) (tau : list bool)

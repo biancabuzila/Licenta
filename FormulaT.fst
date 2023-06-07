@@ -31,13 +31,13 @@ let rec valid_formula_t (f:formula_t)
 
 
 let rec variables_up_to (f:formula_t) (n:int)
-    : r:bool {r ==> valid_formula_t f}
+    : Tot (r:bool {r ==> valid_formula_t f})
     = match f with
         | Var value -> 0 <= value && value < n
         | Not f' -> variables_up_to f' n
         | Or f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
         | And f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
-        | Implies f1 f2 ->variables_up_to f1 n && variables_up_to f2 n
+        | Implies f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
         | DImplies f1 f2 -> variables_up_to f1 n && variables_up_to f2 n
 
 

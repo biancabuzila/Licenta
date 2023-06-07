@@ -9,7 +9,6 @@ open Utils
 open FormulaT
 open CnfFormula
 open TseitinCore
-// open TseitinProofs
 open LemmasForClauses
 
 
@@ -38,26 +37,12 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
             let rf = [] in
             let v = value in
             let end_interval = start_interval in
-
-            let aux (tau : list bool) 
-                : Lemma (requires L.length tau = n)
-                        (ensures L.length tau = n /\
-                                 can_extend tau f rf v n start_interval end_interval)
-                = let tau' = tau @ (n_falses (end_interval - n)) in
-                  LP.append_length tau (n_falses (end_interval - n));
-                  assert (L.length tau' = end_interval);
-                  assert (can_extend tau f rf v n start_interval end_interval)
-            in
-            forall_intro (move_requires aux);
-            assert (tseitin_can_extend f rf v n start_interval end_interval);
-            assert (tseitin_same_value f rf v n start_interval end_interval);
             rf, v, end_interval
         | Not f1 ->
             let rf1, v1, v = tseitin_cnf f1 n start_interval in
             let end_interval = v + 1 in
             let rf = rf1 @ (not_clauses v1 v) in
-            prove_can_extend_not f1 rf1 v1 n start_interval v end_interval rf;
-            prove_same_value_not f1 rf1 v1 n start_interval v end_interval rf;
+            prove_same_value_can_extend_not f1 rf1 v1 n start_interval v end_interval rf;
             rf, v, end_interval
         | Or f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
@@ -65,32 +50,28 @@ let rec tseitin_cnf (f:formula_t) (n:nat) (start_interval:nat)
             let end_interval = v + 1 in
             let rf = rf1 @ rf2 @ (or_clauses v1 v2 v) in
             assert (valid f2 rf2 v2 n mid v);
-            prove_can_extend_or f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
-            prove_same_value_or f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_can_extend_or f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | And f1 f2 -> 
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
             let rf = rf1 @ rf2 @ (and_clauses v1 v2 v) in
-            prove_can_extend_and f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
-            prove_same_value_and f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_can_extend_and f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | Implies f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
             let rf = rf1 @ rf2 @ (implies_clauses v1 v2 v) in
-            prove_can_extend_implies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
-            prove_same_value_implies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_can_extend_implies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
         | DImplies f1 f2 ->
             let rf1, v1, mid = tseitin_cnf f1 n start_interval in
             let rf2, v2, v = tseitin_cnf f2 n mid in
             let end_interval = v + 1 in
             let rf = rf1 @ rf2 @ (dimplies_clauses v1 v2 v) in 
-            prove_can_extend_dimplies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
-            prove_same_value_dimplies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
+            prove_same_value_can_extend_dimplies f1 rf1 v1 f2 rf2 v2 n start_interval mid v end_interval rf;
             rf, v, end_interval
 
 

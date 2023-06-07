@@ -19,7 +19,7 @@ let rec n_falses (n:nat)
 
 
 let smaller (a : list nat) (b : list nat {L.length a = L.length b && L.length a = 5})
-    : bool
+    : Tot bool
     = L.hd a < L.hd b ||
       (L.hd a <= L.hd b && L.index a 1 < L.index b 1) ||
       (L.hd a <= L.hd b && L.index a 1 <= L.index b 1 && L.index a 2 < L.index b 2) ||
@@ -89,8 +89,8 @@ let rec interval_of_list (#a:Type) (l : list a) (start_interval:nat) (end_interv
                     (ensures fun r -> L.length r = end_interval - start_interval /\
                                        (forall (i:nat) . start_interval <= i && i < end_interval ==> L.index l i == L.index r (i - start_interval)))
     = if start_interval = 0 then 
-        if end_interval = 0 then []
-        else (L.hd l)::interval_of_list (L.tl l) 0 (end_interval - 1)
+          if end_interval = 0 then []
+          else (L.hd l)::interval_of_list (L.tl l) 0 (end_interval - 1)
       else interval_of_list (L.tl l) (start_interval - 1) (end_interval - 1)
 
 
@@ -130,13 +130,6 @@ let rec is_prefix_then_is_interval (l1 : list bool) (l2 : list bool)
 let indefinite_description_tot_bool (a:Type) (p : (a -> bool) {exists x. p x})
   : Tot (w : a {p w})
   = admit()
-
-
-// let indefinite_description_ghost_bool (a:Type) (p : (a -> bool) {exists x. p x})
-//   : GTot (x : a {p x})
-//   = let w = indefinite_description_tot_bool a p in
-//     let x = Ghost.reveal w in
-//     x
 
 
 let extract_value (p : ((list bool) -> bool) {exists x . p x}) : (list bool) =

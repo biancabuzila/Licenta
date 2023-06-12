@@ -29,8 +29,11 @@ let extend (tau : list bool) (tau' : list bool) (n:nat) (start_interval:nat) (en
       LP.append_assoc tau falses tau';
       LP.append_length tau falses;
       LP.append_length (tau @ falses) tau';
-      same_values_append [] tau (falses @ tau');
+      assert (L.length r = end_interval);
+      interval_append_fst tau (falses @ tau');
+      assert (interval_of_list r 0 n = tau);
       same_values_append (tau @ falses) tau' [];
+      assert (interval_of_list r start_interval end_interval = tau');
       r
 
 

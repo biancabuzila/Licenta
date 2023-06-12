@@ -82,7 +82,7 @@ let satisfied_formula (f:formula_t) (tau : list bool)
       assert (variables_up_to f n);
       variables_up_to_max_var f (L.length tau);
       let tau' = interval_of_list tau 0 n in
-      same_values_append [] tau' [];
+      interval_append_fst tau' [];
       assignment_relevant f n tau tau'
 
 
@@ -96,7 +96,7 @@ let satisfied_cnf_formula (rf : list (list int)) (tau : list bool)
       variables_up_to_max_var_cnf_formula rf (L.length tau);
       assert (L.length tau >= n);
       let tau' = interval_of_list tau 0 n in
-      same_values_append [] tau' [];
+      interval_append_fst tau' [];
       assignment_relevant_cnf_formula rf tau tau' n
 
 
@@ -124,8 +124,8 @@ let equisatisfiable_f (f:formula_t) (rf : list (list int)) (v:int) (n:nat) (end_
       LP.append_length tau_short (n_falses (n - max_var f));
       assert (L.length tau = L.length tau_short + L.length (n_falses ( n - max_var f)));
       assert (L.length tau = n);
-      same_values_append [] tau_short [];
-      same_values_append [] tau_short (n_falses (n - max_var f));
+      interval_append_fst tau_short [];
+      interval_append_fst tau_short (n_falses (n - max_var f));
       assignment_relevant f (max_var f) tau_short tau;
       assert (truth_value f tau);
       assert (can_extend tau f rf v n n end_interval);
@@ -182,8 +182,8 @@ let equisatisfiable_cnf_formula (f:formula_t) (rf : list (list int)) (v:int) (n:
       let tau = tau_short @ (n_falses (end_interval - (L.length tau_short))) in
       LP.append_length tau_short (n_falses (end_interval - (L.length tau_short)));
       assert (L.length tau = end_interval);
-      same_values_append [] tau_short [];
-      same_values_append [] tau_short (n_falses (end_interval - (L.length tau_short)));
+      interval_append_fst tau_short [];
+      interval_append_fst tau_short (n_falses (end_interval - (L.length tau_short)));
       assignment_relevant_cnf_formula (rf @ [[pos_var_to_lit v]]) tau_short tau (L.length tau_short);
 
       assert (valid_cnf_formula [[pos_var_to_lit v]]);

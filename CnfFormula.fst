@@ -229,54 +229,6 @@ let rec assignment_relevant_cnf_formula (rf : list (list int)) (tau : list bool)
             assignment_relevant_cnf_formula tl tau tau' n
 
 
-let transfer_truth_value_lit (lit:int) (tau : list bool) (tau' : list bool)
-                             (n:nat) (start_interval:nat) (end_interval:nat)
-    : Lemma (requires valid_literal lit &&
-                      n <= start_interval && start_interval <= end_interval &&
-                      variables_in_interval_literal lit n start_interval end_interval &&
-                      L.length tau >= end_interval && L.length tau' >= end_interval &&
-                      interval_of_list tau 0 n = interval_of_list tau' 0 n &&
-                      interval_of_list tau start_interval end_interval = interval_of_list tau' start_interval end_interval)
-            (ensures truth_value_literal lit tau = truth_value_literal lit tau')
-    = assert ((0 <= lit_to_var lit && lit_to_var lit < n) ||
-             (start_interval <= lit_to_var lit && lit_to_var lit < end_interval));
-      assert (L.index tau (lit_to_var lit) = L.index tau' (lit_to_var lit))
-
-
-let rec transfer_truth_value_clause (clause : list int) (tau : list bool) (tau' : list bool)
-                                    (n:nat) (start_interval:nat) (end_interval:nat)
-    : Lemma (requires valid_clause clause /\
-                      n <= start_interval /\ start_interval <= end_interval /\
-                      variables_in_interval_clause clause n start_interval end_interval /\
-                      L.length tau >= end_interval /\ L.length tau' >= end_interval /\
-                      interval_of_list tau 0 n = interval_of_list tau' 0 n /\
-                      interval_of_list tau start_interval end_interval = interval_of_list tau' start_interval end_interval)
-            (ensures truth_value_clause clause tau = truth_value_clause clause tau')
-    = match clause with
-        | [] -> ()
-        | hd::tl -> 
-            transfer_truth_value_lit hd tau tau' n start_interval end_interval;
-            transfer_truth_value_clause tl tau tau' n start_interval end_interval
-
-
-let rec transfer_truth_value (rf : list (list int)) (tau : list bool) (tau' : list bool)
-                             (n:nat) (start_interval:nat) (end_interval:nat)
-    : Lemma (requires valid_cnf_formula rf /\
-                      n <= start_interval /\ start_interval <= end_interval /\
-                      variables_in_interval rf n start_interval end_interval /\
-                      L.length tau >= end_interval /\ L.length tau' >= end_interval /\
-                      interval_of_list tau 0 n = interval_of_list tau' 0 n /\
-                      interval_of_list tau start_interval end_interval = interval_of_list tau' start_interval end_interval)
-            (ensures variables_up_to_cnf_formula rf (L.length tau) &&
-                     variables_up_to_cnf_formula rf (L.length tau') &&
-                     truth_value_cnf_formula rf tau = truth_value_cnf_formula rf tau')
-    = match rf with
-        | [] -> ()
-        | hd::tl -> 
-            transfer_truth_value_clause hd tau tau' n start_interval end_interval;
-            transfer_truth_value tl tau tau' n start_interval end_interval
-
-
 let rec append_valid_cnf_formulas (rf1 : list (list int)) (rf2 : list (list int))
     : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2)
             (ensures valid_cnf_formula (rf1 @ rf2))
@@ -347,13 +299,13 @@ let rec append_true_cnf_formulas (rf1 : list (list int)) (rf2 : list (list int))
       )
 
 
-let rec true_parts_of_cnf_formula (rf : list (list int)) (last : list (list int)) (tau : list bool)
-    : Lemma (requires valid_cnf_formula rf /\ valid_cnf_formula last /\ valid_cnf_formula (rf @ last) /\
-                      variables_up_to_cnf_formula rf (L.length tau) /\
-                      variables_up_to_cnf_formula last (L.length tau) /\
-                      variables_up_to_cnf_formula (rf @ last) (L.length tau) /\
-                      truth_value_cnf_formula (rf @ last) tau)
-            (ensures truth_value_cnf_formula rf tau /\
-                     truth_value_cnf_formula last tau)
-    = if rf = [] then ()
-      else true_parts_of_cnf_formula (L.tl rf) last tau
+let rec true_parts_of_cnf_formula (rf1 : list (list int)) (rf2 : list (list int)) (tau : list bool)
+    : Lemma (requires valid_cnf_formula rf1 /\ valid_cnf_formula rf2 /\ valid_cnf_formula (rf1 @ rf2) /\
+                      variables_up_to_cnf_formula rf1 (L.length tau) /\
+                      variables_up_to_cnf_formula rf2 (L.length tau) /\
+                      variables_up_to_cnf_formula (rf1 @ rf2) (L.length tau) /\
+                      truth_value_cnf_formula (rf1 @ rf2) tau)
+            (ensures truth_value_cnf_formula rf1 tau /\
+                     truth_value_cnf_formula rf2 tau)
+    = if rf1 = [] then ()
+      else true_parts_of_cnf_formula (L.tl rf1) rf2 tau

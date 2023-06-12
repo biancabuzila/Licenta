@@ -199,8 +199,8 @@ let equivalent_trans (f1:formula_t) (f2:formula_t) (f3:formula_t)
             LP.append_length tau temp;
             variables_up_to_monotone f2 (L.length temp) (L.length (L.append tau temp));
 
-            same_values_append [] tau [];
-            same_values_append [] tau temp;
+            interval_append_fst tau [];
+            interval_append_fst tau temp;
 
             assignment_relevant f1 (L.length tau) tau (L.append tau temp); 
             variables_up_to_monotone f1 (L.length tau) (L.length (L.append tau temp));

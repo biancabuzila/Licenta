@@ -43,8 +43,8 @@ let not_clauses_in_interval (v1:int) (v:int) (n:nat) (start_interval:nat) (end_i
 
 #set-options "--split_queries always"
 let prove_same_value_can_extend_not (f1:formula_t) (rf1 : list (list int)) (v1:int) (n:nat)
-                         (start_interval:nat) (v:int) (end_interval:nat)
-                         (rf : list (list int)) 
+                                    (start_interval:nat) (v:int) (end_interval:nat)
+                                    (rf : list (list int)) 
     : Lemma (requires n <= start_interval /\ start_interval <= v /\
                       valid f1 rf1 v1 n start_interval v /\
                       tseitin_same_value f1 rf1 v1 n start_interval v /\

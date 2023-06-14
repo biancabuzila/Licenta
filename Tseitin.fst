@@ -3,6 +3,7 @@ module Tseitin
 open FStar.List.Tot
 module L = FStar.List.Tot.Base
 module LP = FStar.List.Tot.Properties
+open FStar.String
 open FStar.Classical
 open FStar.Ghost
 open Utils
@@ -227,3 +228,27 @@ let tseitin (f:formula_t)
       let r = rf @ [[pos_var_to_lit v]] in
       tseitin_follows f rf v n end_interval;
       r
+
+
+let rec print_clause (clause : list int {valid_clause clause}) : string
+   = match clause with
+      | [] -> ""
+      | hd::tl -> 
+           let r = print_clause tl in
+           if r = "" then string_of_int (lit_to_var hd)
+           else
+           (
+              if hd < 0 then 
+                 let aux = concat "" ["~("; string_of_int (lit_to_var hd); ")"] in
+                 concat " or " [aux; r]
+              else concat " or " [string_of_int (lit_to_var hd); r]
+           )
+
+
+let rec print_cnf_formula (rf : list (list int) {valid_cnf_formula rf}) : string
+   = match rf with
+      | [] -> ""
+      | hd::tl ->
+           let r = print_cnf_formula tl in
+           if r = "" then concat "" ["("; print_clause hd; ")"]
+           else concat " and " [concat "" ["("; print_clause hd; ")"]; r]
